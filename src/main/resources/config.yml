@@ -1,0 +1,217 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║           QuantumCrates — config.yml                        ║
+# ║  Web-First Crate Plugin by bintanq                          ║
+# ║  Semua message bisa diedit dari sini atau Web Dashboard      ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+# ─────────────────────────────────────────────────────────────
+# DATABASE
+# ─────────────────────────────────────────────────────────────
+database:
+  type: sqlite   # sqlite | mysql
+  sqlite:
+    file: quantumcrates.db
+  mysql:
+    host: localhost
+    port: 3306
+    database: quantumcrates
+    username: root
+    password: password
+    pool-size: 10
+    connection-timeout: 30000
+    idle-timeout: 600000
+    max-lifetime: 1800000
+
+# ─────────────────────────────────────────────────────────────
+# GENERAL SETTINGS
+# ─────────────────────────────────────────────────────────────
+settings:
+  debug: false
+  log-openings: true
+  max-concurrent-openings: 50
+
+# ─────────────────────────────────────────────────────────────
+# KEY SYSTEM
+# Pilih satu mode untuk seluruh server:
+#   virtual  → key disimpan sebagai balance di database.
+#              Player tidak punya item fisik. Lebih aman, tidak bisa drop/trade.
+#   physical → key adalah item fisik di inventory player dengan PDC tag unik.
+#              Bisa di-drop, trade, simpan di chest. Feeling lebih "nyata".
+# ─────────────────────────────────────────────────────────────
+keys:
+  # Mode global untuk semua key di server ini.
+  mode: virtual   # virtual | physical
+
+  # Konfigurasi tampilan physical key (hanya berlaku jika mode: physical)
+  physical:
+    material: TRIPWIRE_HOOK   # material default jika tidak dioverride per-key
+    custom-model-data: -1     # -1 = tidak pakai
+    # Lore tambahan yang muncul di semua physical key
+    extra-lore:
+      - ""
+      - "&8▸ &7Right-click crate untuk menggunakan."
+
+# ─────────────────────────────────────────────────────────────
+# HOLOGRAMS
+# ─────────────────────────────────────────────────────────────
+holograms:
+  provider: packet   # decentholograms | packet
+  update-interval: 10         # ticks
+
+# ─────────────────────────────────────────────────────────────
+# PARTICLES
+# ─────────────────────────────────────────────────────────────
+particles:
+  idle-interval: 5   # ticks antar spawn particle saat crate idle
+
+# ─────────────────────────────────────────────────────────────
+# WEB DASHBOARD
+# REST API + WebSocket untuk QuantumCrates Web Dashboard.
+#
+# secret-token → password untuk login ke dashboard.
+#   WAJIB DIGANTI sebelum deploy ke server production!
+#   Generate random token: https://generate.plus/en/base64?length=48
+#   Contoh token yang valid: "Xk9mP2vL8nQ4rT7wY1jA6bC3dF5hG0ZsEuIoR"
+#
+# cors-origins → domain web dashboard kamu.
+#   Contoh: "http://panel.myserver.com"
+#   Development (semua domain diizinkan): "*"
+#   Multiple: "http://panel.myserver.com,https://admin.myserver.com"
+#
+# rate-limit → max request per IP per menit.
+#   Fungsi: mencegah abuse/spam ke REST API.
+#   Default 120 = 2 request/detik sudah lebih dari cukup untuk dashboard normal.
+#   Turunkan ke 60 jika paranoid, naikkan ke 300 jika dashboard butuh refresh cepat.
+# ─────────────────────────────────────────────────────────────
+web:
+  enabled: true
+  port: 7420
+  secret-token: "GANTI_INI_SEKARANG_MINIMAL_32_KARAKTER_ACAK"
+  cors-origins: "*"
+  rate-limit: 120
+  log-requests: false
+  # Host/IP yang dipakai di magic link. Kosongkan = auto-detect.
+  # Isi jika server di balik reverse proxy / custom domain.
+  # Contoh: "mc.serverku.com" atau "103.x.x.x"
+  host: ""
+
+# ─────────────────────────────────────────────────────────────
+# MESSAGES
+# Semua pesan plugin. Mendukung & color codes.
+# Bisa diedit langsung di sini atau via Web Dashboard (realtime).
+#
+# Placeholder yang tersedia per message:
+#   {player}    → nama player
+#   {crate}     → nama/ID crate
+#   {reward}    → nama reward
+#   {key}       → nama key
+#   {amount}    → jumlah
+#   {time}      → durasi (cooldown)
+#   {current}   → nilai saat ini (pity)
+#   {max}       → nilai maksimum (pity threshold)
+#   {count}     → jumlah (mass open)
+#   {schedule}  → jadwal berikutnya (crate terjadwal)
+# ─────────────────────────────────────────────────────────────
+messages:
+  prefix: "&8[&bQuantumCrates&8] &r"
+
+  # ── Umum ──
+  no-permission:     "&cKamu tidak punya permission untuk melakukan itu."
+  player-only:       "&cCommand ini hanya bisa digunakan oleh player."
+  player-not-found:  "&cPlayer &e{player} &ctidak ditemukan atau offline."
+  invalid-number:    "&cJumlah harus berupa bilangan bulat positif."
+  reload-success:    "&aSemua crate, hologram, dan particle berhasil di-reload!"
+  crate-not-found:   "&cCrate tidak ditemukan: &e{crate}&c."
+  crate-disabled:    "&cCrate &e{crate} &csedang nonaktif."
+  players-only-open: "&cCrate hanya bisa dibuka oleh player, bukan console."
+
+  # ── Crate Opening ──
+  crate-not-open:    "&cCrate &e{crate} &cbelum bisa dibuka sekarang. Tersedia: &e{schedule}"
+  cooldown-active:   "&cTunggu &e{time} &csebelum membuka crate ini lagi."
+  already-opening:   "&cKamu sedang dalam proses membuka crate!"
+  reward-received:   "&aSelamat! Kamu mendapat: &e{reward}"
+  inventory-full:    "&eInventory penuh! Item &f{reward} &edijatuhkan di kakimu."
+
+  # ── Key ──
+  key-not-found:     "&cKamu tidak punya key yang dibutuhkan: &e{key}"
+  key-given-sender:  "&aKasih &e{amount}x &b{key} &ake &e{player}&a."
+  key-given-receiver: "&aKamu mendapat &e{amount}x &b{key}&a!"
+  key-insufficient:  "&cBalance tidak cukup untuk remove key &e{key}&c."
+  mass-open-disabled: "&cMass open tidak tersedia untuk crate &e{crate}&c."
+  mass-open-success: "&aBerhasil membuka &e{count}&a crate sekaligus!"
+
+  # ── Pity ──
+  pity-progress:     "&7Pity: &e{current}&7/&e{max} &8(+{bonus}% bonus chance)"
+  pity-guaranteed:   "&6✦ &ePity terpicu! Reward rare dijamin."
+
+  # ── Admin Commands ──
+  pity-info:         "&7Pity &e{player} &7pada &e{crate}&7: &b{current}&7/&b{max}"
+  pity-reset-done:   "&aPity &e{player} &apada &e{crate} &aberhasil di-reset."
+  setloc-success:    "&aLokasi crate &e{crate} &adi-set ke &e{x}&7, &e{y}&7, &e{z} &8[{world}]"
+  setloc-no-target:  "&cLihat ke arah sebuah block dalam jarak 5 block."
+
+  # ── Reward Broadcast (dikirim ke seluruh server) ──
+  # Dioverride per-reward di crate JSON field "broadcastMessage"
+  broadcast-default: "&6✦ &e{player} &7memenangkan &6{reward} &7dari &e{crate}&7!"
+
+  # ── Preview GUI ──
+  preview-no-perm:   "&cKamu tidak punya permission untuk preview crate."
+  massopen-no-perm:  "&cKamu tidak punya permission untuk mass open."
+
+  # ── Info Command ──
+  info-header:       "&b&l━━━ Crate Info: {crate} &b&l━━━"
+  info-id:           "&7ID: &f{crate}"
+  info-status-on:    "&7Status: &aAktif"
+  info-status-off:   "&7Status: &cNonaktif"
+  info-rewards:      "&7Jumlah Reward: &f{count}"
+  info-total-weight: "&7Total Weight: &f{weight}"
+  info-cooldown:     "&7Cooldown: &f{time}"
+  info-pity-on:      "&7Pity: &aAktif &8(threshold=&e{max}&8, soft=&e{soft}&8)"
+  info-pity-off:     "&7Pity: &cNonaktif"
+  info-massopen-on:  "&7Mass Open: &aAktif &8(limit=&e{limit}&8)"
+  info-massopen-off: "&7Mass Open: &cNonaktif"
+  info-schedule:     "&7Schedule: &f{schedule}"
+  info-openable:     "&7Bisa Dibuka: &aYa"
+  info-not-openable: "&7Bisa Dibuka: &cTidak"
+  info-location:     "&7Lokasi: &f{world} &8({x}, {y}, {z})"
+  info-no-location:  "&7Lokasi: &cBelum diset &8(/qc setloc {crate})"
+  info-keys-header:  "&7Key Dibutuhkan:"
+  info-key-entry:    "  &8▸ &e{key} &7x{amount} &8[{type}]"
+
+  # ── Usage (command syntax hints) ──
+  usage-give:      "&cUsage: /qc give <player> <keyId> <amount>"
+  usage-open:      "&cUsage: /qc open <crateId>"
+  usage-massopen:  "&cUsage: /qc massopen <crateId> [count]"
+  usage-preview:   "&cUsage: /qc preview <crateId>"
+  usage-info:      "&cUsage: /qc info <crateId>"
+  usage-setloc:    "&cUsage: /qc setloc <crateId>"
+  usage-pity:      "&cUsage: /qc pity <player> <crateId>"
+  usage-resetpity: "&cUsage: /qc resetpity <player> <crateId>"
+  usage-keys:      "&cUsage: /qc keys <player> <keyId>"
+  keys-balance:    "&7Virtual key &e[{key}] &7milik &e{player}&7: &b{balance}"
+
+  # ── List command ──
+  list-empty:      "&7Belum ada crate yang terdaftar."
+  list-header:     "&b&l━━━ Crate Terdaftar &7({count}) &b&l━━━"
+  list-entry:      "  &8▸ &e{id} &7({name}&7) {status} &8| &7{rewards} rewards &8| &7{keys} key(s)"
+  list-status-on:  "&aAktif"
+  list-status-off: "&cNonaktif"
+
+  # ── Help command ──
+  help-header:           "&b&l━━━ QuantumCrates Help ━━━"
+  help-reload:           "&e/qc reload &7- Reload semua crate"
+  help-give:             "&e/qc give <player> <key> <amount> &7- Kasih key ke player"
+  help-open:             "&e/qc open <crateId> &7- Force buka crate (admin)"
+  help-massopen:         "&e/qc massopen <crateId> [amount] &7- Mass open"
+  help-preview:          "&e/qc preview <crateId> &7- Lihat preview reward"
+  help-info:             "&e/qc info <crateId> &7- Detail info crate"
+  help-list:             "&e/qc list &7- List semua crate"
+  help-setloc:           "&e/qc setloc <crateId> &7- Set lokasi crate ke block"
+  help-pity:             "&e/qc pity <player> <crateId> &7- Cek pity counter"
+  help-resetpity:        "&e/qc resetpity <player> <crateId> &7- Reset pity"
+  help-keys-cmd:         "&e/qc keys <player> <keyId> &7- Cek saldo virtual key"
+  help-controls-header:  "&b&lKontrol Crate Block:"
+  help-ctrl-left:        "  &e[Klik Kiri]        &7→ Preview reward"
+  help-ctrl-right:       "  &e[Klik Kanan]       &7→ Buka crate"
+  help-ctrl-shift:       "  &e[Shift+Klik Kanan] &7→ Mass open semua key"
+  help-web: "&e/qc web [ip] &7- Buka web dashboard (generate magic link)"

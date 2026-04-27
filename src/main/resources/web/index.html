@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>QuantumCrates — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/variables.css"/>
+<link rel="stylesheet" href="css/base.css"/>
+<link rel="stylesheet" href="css/layout.css"/>
+<link rel="stylesheet" href="css/components.css"/>
+<link rel="stylesheet" href="css/pages.css"/>
+<link rel="stylesheet" href="css/modals.css"/>
+<link rel="stylesheet" href="css/animations.css"/>
+<style>
+/* ── Magic Link Loading Screen ── */
+.magic-screen{
+  position:fixed;inset:0;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:200;gap:16px;
+}
+.magic-logo{
+  width:56px;height:56px;
+  background:linear-gradient(135deg,var(--cyan),#004a44);
+  border-radius:14px;display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow-cyan);
+  animation:magic-pulse 1.5s ease-in-out infinite;
+}
+@keyframes magic-pulse{0%,100%{box-shadow:0 0 20px var(--cyan-glow)}50%{box-shadow:0 0 40px rgba(0,229,212,.5)}}
+.magic-text{font-size:14px;font-weight:600;color:var(--text2)}
+.magic-sub{font-size:11.5px;color:var(--text3)}
+.magic-error{
+  text-align:center;max-width:380px;padding:32px;
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+}
+.magic-error h3{color:var(--red);margin-bottom:8px;font-size:16px}
+.magic-error p{color:var(--text2);font-size:12px;line-height:1.6;margin-bottom:12px}
+.magic-error code{
+  display:block;background:var(--bg3);border:1px solid var(--border);
+  border-radius:6px;padding:8px 12px;color:var(--cyan);
+  font-size:12px;font-family:monospace;margin-top:8px;
+}
+</style>
+</head>
+<body>
+
+<!-- ══ MAGIC LINK LOADING ══ -->
+<div id="magicScreen" class="magic-screen" style="display:none">
+  <div class="magic-logo">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+      <path d="M8 16l6-8 4 5 3-3 3 6H8z" fill="white" opacity=".9"/>
+      <path d="M9 18h14l-2 6H11z" fill="white" opacity=".7"/>
+    </svg>
+  </div>
+  <div class="magic-text" id="magicText">Authenticating...</div>
+  <div class="magic-sub" id="magicSub">Validating your session token</div>
+  <svg class="spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" id="magicSpinner">
+    <path d="M21 12a9 9 0 00-9-9" opacity=".3"/>
+    <path d="M21 12a9 9 0 00-9-9"/>
+  </svg>
+</div>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="loginScreen" class="login-screen" style="display:none">
+  <div class="login-bg">
+    <div class="login-particles" id="loginParticles"></div>
+  </div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">
+        <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+          <path d="M8 16l6-8 4 5 3-3 3 6H8z" fill="white" opacity=".9"/>
+          <path d="M9 18h14l-2 6H11z" fill="white" opacity=".7"/>
+        </svg>
+      </div>
+      <div>
+        <div class="login-logo-text">QUANTUM<span>CRATES</span></div>
+        <div class="login-logo-sub">Web Dashboard</div>
+      </div>
+    </div>
+    <h2 class="login-title">Session Expired</h2>
+    <p class="login-sub">Your magic link has expired. Use <strong>/qc web</strong> in-game to get a new one, or enter your token manually below.</p>
+    <form class="login-form" id="loginForm" onsubmit="handleManualLogin(event)">
+      <div class="field-group">
+        <label class="field-label">Server Token</label>
+        <div class="field-wrap">
+          <input type="password" id="tokenInput" class="field-input" placeholder="Paste your secret token..." autocomplete="off"/>
+          <button type="button" class="field-eye" onclick="togglePassword()">
+            <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Server URL</label>
+        <input type="text" id="serverUrl" class="field-input" placeholder="http://localhost:7420"/>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
+        <span class="btn-text">Connect</span>
+        <span class="btn-loader" style="display:none">
+          <svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 00-9-9"/>
+          </svg>
+          Connecting...
+        </span>
+      </button>
+    </form>
+    <div class="login-footer">
+      Use <code style="background:var(--bg3);padding:1px 6px;border-radius:4px;color:var(--cyan);font-size:11px">/qc web</code> in-game for instant access
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP SHELL ══ -->
+<div id="appShell" class="app-shell" style="display:none">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">
+          <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
+            <path d="M8 16l6-8 4 5 3-3 3 6H8z" fill="white" opacity=".9"/>
+            <path d="M9 18h14l-2 6H11z" fill="white" opacity=".7"/>
+          </svg>
+        </div>
+        <div>
+          <div class="sidebar-logo-text">QUANTUM<span>CRATES</span></div>
+          <div class="sidebar-logo-ver" id="sidebarVer">v1.0.0</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-group-label">Main</div>
+        <a class="nav-item active" data-page="architect" onclick="navigate('architect')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 17h7M17.5 14v7"/></svg>
+          Crate Architect
+        </a>
+        <a class="nav-item" data-page="analytics" onclick="navigate('analytics')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Analytics & Logs
+          <span class="nav-badge" id="liveBadge">LIVE</span>
+        </a>
+        <div class="nav-group-label">Config</div>
+        <a class="nav-item" data-page="keys" onclick="navigate('keys')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+          Key Settings
+        </a>
+        <a class="nav-item" data-page="messages" onclick="navigate('messages')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Messages
+        </a>
+        <a class="nav-item" data-page="players" onclick="navigate('players')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          Players
+        </a>
+        <a class="nav-item" data-page="settings" onclick="navigate('settings')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Settings
+        </a>
+      </nav>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="server-card" id="serverCard">
+        <div class="server-status-dot" id="statusDot"></div>
+        <div class="server-info">
+          <div class="server-name" id="serverName">Connecting...</div>
+          <div class="server-meta" id="serverMeta">—</div>
+        </div>
+        <button class="server-refresh" onclick="refreshStatus()" title="Refresh">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+        </button>
+      </div>
+      <button class="btn-logout" onclick="logout()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Logout
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <span class="breadcrumb-page" id="breadcrumbPage">Crate Architect</span>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-stats">
+          <div class="tstat"><span class="tstat-val" id="tstatOnline">—</span><span class="tstat-label">Online</span></div>
+          <div class="tstat-sep"></div>
+          <div class="tstat"><span class="tstat-val" id="tstatTps">—</span><span class="tstat-label">TPS</span></div>
+          <div class="tstat-sep"></div>
+          <div class="tstat"><span class="tstat-val" id="tstatOpens">—</span><span class="tstat-label">Opens/day</span></div>
+        </div>
+      </div>
+    </header>
+    <div class="page-container" id="pageContainer">
+      <div class="page active" id="page-architect"></div>
+      <div class="page" id="page-analytics"></div>
+      <div class="page" id="page-keys"></div>
+      <div class="page" id="page-messages"></div>
+      <div class="page" id="page-players"></div>
+      <div class="page" id="page-settings"></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL + TOAST -->
+<div id="modalOverlay" class="modal-overlay" onclick="closeModalOnOverlay(event)">
+  <div id="modalContainer"></div>
+</div>
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="js/state.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ws.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/components.js"></script>
+<script src="js/pages/architect.js"></script>
+<script src="js/pages/analytics.js"></script>
+<script src="js/pages/keys.js"></script>
+<script src="js/pages/messages.js"></script>
+<script src="js/pages/players.js"></script>
+<script src="js/pages/settings.js"></script>
+<script src="js/modals/reward-modal.js"></script>
+<script src="js/modals/preview-modal.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+/* ══ MAGIC LINK HANDLER ══
+   Dijalankan SEBELUM app.js karena inline di HTML.
+   Cek URL param ?token= → kalau ada, validasi ke server → set session → launch app.
+   Kalau tidak ada token dan tidak ada session cookie → show login screen.
+*/
+(async function initApp() {
+  const params     = new URLSearchParams(window.location.search);
+  const magicToken = params.get('token');
+
+  // Bersihkan token dari URL bar (security: jangan sampai token keliatan di history)
+  if (magicToken) {
+    window.history.replaceState({}, document.title, '/');
+  }
+
+  // Server URL = origin saat ini (karena web di-serve dari plugin itu sendiri)
+  State.serverUrl = window.location.origin;
+
+  if (magicToken) {
+    // Ada magic token → validate ke server
+    showMagicScreen('Authenticating...', 'Validating your session token');
+    try {
+      const res = await fetch('/api/auth/magic?token=' + encodeURIComponent(magicToken));
+      if (res.redirected || res.ok) {
+        // Server set cookie via response header, langsung launch
+        showMagicScreen('Success!', 'Opening your dashboard...');
+        // Ambil JWT dari cookie untuk dipakai di API calls
+        State.jwt = getCookieValue('qc_jwt');
+        await launchApp();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showMagicError(data.message || 'Token invalid or expired.');
+      }
+    } catch (e) {
+      showMagicError('Cannot connect to server. Make sure the plugin is running.');
+    }
+
+  } else {
+    // Tidak ada magic token — cek apakah ada cookie session yang masih valid
+    const existingJwt = getCookieValue('qc_jwt');
+    if (existingJwt) {
+      State.jwt = existingJwt;
+      try {
+        await fetch('/api/auth/check', { headers: { Authorization: 'Bearer ' + existingJwt } })
+          .then(r => { if (!r.ok) throw new Error('expired'); });
+        await launchApp();
+      } catch {
+        // Session expired → show login
+        showLoginScreen();
+      }
+    } else {
+      // No session at all → show login
+      showLoginScreen();
+    }
+  }
+})();
+
+function showMagicScreen(text, sub) {
+  document.getElementById('magicScreen').style.display = 'flex';
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').style.display    = 'none';
+  document.getElementById('magicText').textContent = text;
+  document.getElementById('magicSub').textContent  = sub;
+}
+
+function showMagicError(msg) {
+  const screen = document.getElementById('magicScreen');
+  screen.style.display = 'flex';
+  document.getElementById('magicSpinner').style.display = 'none';
+  screen.innerHTML = `
+    <div class="magic-error">
+      <div style="font-size:40px;margin-bottom:12px">🔗</div>
+      <h3>Link Expired or Invalid</h3>
+      <p>${msg}</p>
+      <p style="margin-top:8px">Use <strong>/qc web</strong> in-game to generate a new link.</p>
+      <code>/qc web</code>
+    </div>
+  `;
+}
+
+function showLoginScreen() {
+  document.getElementById('magicScreen').style.display  = 'none';
+  document.getElementById('loginScreen').style.display  = 'flex';
+  document.getElementById('appShell').style.display     = 'none';
+  document.getElementById('serverUrl').value = window.location.origin;
+  initLoginParticles();
+}
+
+async function handleManualLogin(e) {
+  e.preventDefault();
+  const token = document.getElementById('tokenInput')?.value?.trim();
+  const url   = document.getElementById('serverUrl')?.value?.trim() || window.location.origin;
+  const btn   = document.getElementById('loginBtn');
+  const err   = document.getElementById('loginError');
+
+  if (!token) { err.textContent = 'Enter your server token.'; err.classList.add('show'); return; }
+
+  btn.querySelector('.btn-text').style.display   = 'none';
+  btn.querySelector('.btn-loader').style.display = 'inline-flex';
+  btn.disabled = true;
+  err.classList.remove('show');
+
+  State.serverUrl = url.replace(/\/$/, '');
+
+  try {
+    const res = await fetch(State.serverUrl + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Login failed');
+    State.jwt = data.jwt;
+    await launchApp();
+  } catch (ex) {
+    err.textContent = ex.message;
+    err.classList.add('show');
+    btn.querySelector('.btn-text').style.display   = '';
+    btn.querySelector('.btn-loader').style.display = 'none';
+    btn.disabled = false;
+  }
+}
+
+function getCookieValue(name) {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function togglePassword() {
+  const inp = document.getElementById('tokenInput');
+  inp.type  = inp.type === 'password' ? 'text' : 'password';
+}
+</script>
+</body>
+</html>

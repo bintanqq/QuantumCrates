@@ -1,0 +1,46 @@
+name: QuantumCrates
+version: '${project.version}'
+main: me.bintanq.quantumcrates.QuantumCrates
+api-version: '1.21'
+description: Revolutionary crate plugin with Web-First management.
+authors: [ bintanq ]
+
+softdepend:
+  - PlaceholderAPI
+  - DecentHolograms
+  - MMOItems
+  - ItemsAdder
+  - Oraxen
+
+commands:
+  quantumcrates:
+    description: QuantumCrates main command
+    aliases: [ qc, crates, crate ]
+    usage: /qc <subcommand>
+    permission: quantumcrates.use
+
+permissions:
+  quantumcrates.admin:
+    description: Full admin access
+    default: op
+    children:
+      quantumcrates.key.give: true
+      quantumcrates.massopen: true
+      quantumcrates.preview: true
+      quantumcrates.use: true
+      quantumcrates.web: true
+  quantumcrates.use:
+    description: Bisa menggunakan crate
+    default: true
+  quantumcrates.preview:
+    description: Preview reward crate
+    default: true
+  quantumcrates.key.give:
+    description: Kasih key ke player lain
+    default: op
+  quantumcrates.massopen:
+    description: Mass open crate
+    default: true
+  quantumcrates.web:
+    description: Generate web dashboard magic link
+    default: op
