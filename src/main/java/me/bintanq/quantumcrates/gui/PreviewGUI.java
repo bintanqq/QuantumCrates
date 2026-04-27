@@ -18,29 +18,16 @@ import java.util.*;
 /**
  * PreviewGUI — inventory GUI that displays all crate rewards.
  *
- * ALL text is read from config.yml section "gui-messages" via MessageManager.getGui().
- * No hardcoded strings whatsoever — fully customizable without recompiling.
- *
- * Layout 6 rows (54 slots):
- * ┌──────────────────────────────────────┐
- * │ B  B  B  B  B  B  B  B  B          │ row 0 — top border
- * │ B  r  r  r  r  r  r  r  B          │ rows 1–4 — 28 reward slots
- * │ B [◄] B  B [✕] B [INFO] B [►] B   │ row 5 — navigation
- * └──────────────────────────────────────┘
+ * All rarity-dependent logic (colors, border materials, ordering)
+ * delegates to RarityManager — zero hardcoded tier names.
  */
 public class PreviewGUI {
 
-    /**
-     * Title prefix used to identify this GUI in GUIListener.
-     * Keep this constant — it's matched against inventory titles.
-     */
     public static final String TITLE_PREFIX = "\u00A70\u00A7lPreview \u00A78\u00BB ";
 
-    // 28 reward slots: rows 1–4, cols 1–7
     private static final int[] REWARD_SLOTS = buildRewardSlots();
-    private static final int REWARD_PER_PAGE = REWARD_SLOTS.length; // 28
+    private static final int REWARD_PER_PAGE = REWARD_SLOTS.length;
 
-    // Navigation slots (row 5)
     private static final int SLOT_PREV  = 46;
     private static final int SLOT_CLOSE = 49;
     private static final int SLOT_INFO  = 50;
@@ -71,10 +58,8 @@ public class PreviewGUI {
         String crateName = colorize(crate.getDisplayName() != null
                 ? crate.getDisplayName() : crate.getId());
 
-        // ── Title ────────────────────────────────────────────────────
         String title;
         if (cfg.getTitle() != null && !cfg.getTitle().isEmpty()) {
-            // Custom title set per-crate in crate JSON
             title = colorize(cfg.getTitle())
                     .replace("{crate}", crateName)
                     .replace("{page}", String.valueOf(page + 1))
@@ -89,16 +74,14 @@ public class PreviewGUI {
                     "{crate}", crateName);
         }
 
-        // Bukkit inventory title max length = 32 chars (legacy) — truncate safely
         if (title.length() > 32) title = title.substring(0, 32);
 
         Inventory inv = Bukkit.createInventory(null, 54, title);
 
-        // ── Border ───────────────────────────────────────────────────
+        // Border: RarityManager resolves the material
         Material borderMat = resolveBorderMaterial(cfg, crate);
         fillBorder(inv, borderMat);
 
-        // ── Rewards ──────────────────────────────────────────────────
         int start = page * REWARD_PER_PAGE;
         int end   = Math.min(start + REWARD_PER_PAGE, sorted.size());
         for (int i = start; i < end; i++) {
@@ -106,12 +89,10 @@ public class PreviewGUI {
                     buildRewardItem(sorted.get(i), totalWeight, cfg));
         }
 
-        // ── Navigation row 5 ─────────────────────────────────────────
         Material prevMat  = parseMaterial(cfg.getPrevButtonMaterial(),  Material.ARROW);
         Material closeMat = parseMaterial(cfg.getCloseButtonMaterial(), Material.BARRIER);
         Material nextMat  = parseMaterial(cfg.getNextButtonMaterial(),  Material.ARROW);
 
-        // Prev button
         if (page > 0) {
             inv.setItem(SLOT_PREV, makeButton(prevMat,
                     MessageManager.getGui("prev-button-name"),
@@ -122,15 +103,12 @@ public class PreviewGUI {
             inv.setItem(SLOT_PREV, makeFiller(Material.GRAY_STAINED_GLASS_PANE));
         }
 
-        // Close button
         inv.setItem(SLOT_CLOSE, makeButton(closeMat,
                 MessageManager.getGui("close-button-name"),
                 List.of(MessageManager.getGui("close-button-lore-1"))));
 
-        // Info item
         inv.setItem(SLOT_INFO, buildInfoItem(player, crate, cfg, page, totalPages));
 
-        // Next button
         if (page < totalPages - 1) {
             inv.setItem(SLOT_NEXT, makeButton(nextMat,
                     MessageManager.getGui("next-button-name"),
@@ -147,7 +125,6 @@ public class PreviewGUI {
     /* ─────────────────────── Reward Item ─────────────────────── */
 
     private ItemStack buildRewardItem(Reward reward, double totalWeight, Crate.PreviewConfig cfg) {
-        // Materialize actual item or fallback to PAPER
         ItemStack base = null;
         if (cfg.isShowActualItem()) {
             try { base = rewardProcessor.materializeItem(reward); } catch (Exception ignored) {}
@@ -160,30 +137,27 @@ public class PreviewGUI {
         ItemMeta meta = display.getItemMeta();
         if (meta == null) return display;
 
-        // Display name
-        String rarityColor = rarityColor(reward.getRarity());
+        // RarityManager provides color — no hardcoded switch
+        String rarityColor = plugin.getRarityManager().getColor(reward.getRarity());
         meta.setDisplayName(reward.getDisplayName() != null
                 ? colorize(reward.getDisplayName())
                 : rarityColor + reward.getId());
 
-        // Build lore
         List<String> lore = new ArrayList<>();
 
-        // Original reward lore from config
         if (reward.getLore() != null && !reward.getLore().isEmpty()) {
             reward.getLore().forEach(l -> lore.add(colorize(l)));
             String divider = MessageManager.getGui("reward-lore-divider");
             if (!divider.isEmpty()) lore.add(divider);
         }
 
-        // Stats lines
         double pct    = reward.calculatePercentage(totalWeight);
         String pctStr = formatChance(pct);
 
         if (cfg.isShowChance()) {
             String line = colorize(cfg.getChanceFormat())
                     .replace("{chance}", pctStr)
-                    .replace("{rarity}", rarityColor + reward.getRarity())
+                    .replace("{rarity}", rarityColor + plugin.getRarityManager().get(reward.getRarity()).getDisplayName())
                     .replace("{weight}", String.format("%.2f", reward.getWeight()))
                     .replace("{amount}", String.valueOf(reward.getAmount()));
             lore.add(line);
@@ -195,7 +169,7 @@ public class PreviewGUI {
         }
 
         lore.add(MessageManager.getGui("reward-rarity-line",
-                "{rarity}", rarityColor + reward.getRarity()));
+                "{rarity}", rarityColor + plugin.getRarityManager().get(reward.getRarity()).getDisplayName()));
 
         if (reward.getAmount() > 1) {
             lore.add(MessageManager.getGui("reward-amount-line",
@@ -212,7 +186,6 @@ public class PreviewGUI {
             if (!tag.isEmpty()) lore.add(tag);
         }
 
-        // Footer lore from crate preview config
         for (String fl : cfg.getRewardFooterLore()) {
             lore.add(colorize(fl)
                     .replace("{chance}", pctStr)
@@ -253,7 +226,6 @@ public class PreviewGUI {
                     "{pages}", String.valueOf(totalPages)));
         }
 
-        // Key balance section
         if (cfg.isShowKeyBalance() && !crate.getRequiredKeys().isEmpty()) {
             String keysHeader = MessageManager.getGui("info-keys-header");
             if (!keysHeader.isEmpty()) lore.add(keysHeader);
@@ -272,7 +244,6 @@ public class PreviewGUI {
             }
         }
 
-        // Pity section
         if (cfg.isShowPity() && crate.getPity().isEnabled()) {
             int pity = plugin.getPlayerDataManager().getPity(player.getUniqueId(), crate.getId());
             int max  = crate.getPity().getThreshold();
@@ -282,9 +253,9 @@ public class PreviewGUI {
             if (!pityHeader.isEmpty()) lore.add(pityHeader);
 
             String statusKey;
-            if (pity >= max)  statusKey = "info-pity-status-hard";
+            if (pity >= max)       statusKey = "info-pity-status-hard";
             else if (pity >= soft) statusKey = "info-pity-status-soft";
-            else              statusKey = "info-pity-status-normal";
+            else                   statusKey = "info-pity-status-normal";
 
             String status = MessageManager.getGui(statusKey);
             lore.add(MessageManager.getGui("info-pity-label",
@@ -295,7 +266,6 @@ public class PreviewGUI {
             lore.add("  " + buildPityBar(pity, max, soft));
         }
 
-        // Controls hint
         String controlsDivider = MessageManager.getGui("info-controls-divider");
         if (!controlsDivider.isEmpty()) lore.add(controlsDivider);
         addIfNotEmpty(lore, MessageManager.getGui("info-controls-left"));
@@ -324,19 +294,13 @@ public class PreviewGUI {
             Material m = parseMaterial(cfg.getBorderMaterial(), null);
             if (m != null) return m;
         }
-        // Auto from highest rarity
-        String highest = "COMMON";
-        for (Reward r : crate.getRewards()) {
-            if (rarityOrder(r.getRarity()) > rarityOrder(highest)) highest = r.getRarity();
-        }
-        return switch (highest.toUpperCase()) {
-            case "MYTHIC"    -> Material.PURPLE_STAINED_GLASS_PANE;
-            case "LEGENDARY" -> Material.ORANGE_STAINED_GLASS_PANE;
-            case "EPIC"      -> Material.MAGENTA_STAINED_GLASS_PANE;
-            case "RARE"      -> Material.BLUE_STAINED_GLASS_PANE;
-            case "UNCOMMON"  -> Material.GREEN_STAINED_GLASS_PANE;
-            default          -> Material.GRAY_STAINED_GLASS_PANE;
-        };
+        // Auto: find highest rarity in this crate, ask RarityManager for its border
+        String highestRarity = crate.getRewards().stream()
+                .map(Reward::getRarity)
+                .max(Comparator.comparingInt(r -> plugin.getRarityManager().getOrder(r)))
+                .orElse(plugin.getRarityManager().getLowestId());
+
+        return plugin.getRarityManager().getBorderMaterial(highestRarity);
     }
 
     /* ─────────────────────── Sorting ─────────────────────── */
@@ -344,12 +308,15 @@ public class PreviewGUI {
     private List<Reward> sortRewards(List<Reward> rewards, Crate.PreviewConfig.SortOrder order) {
         List<Reward> sorted = new ArrayList<>(rewards);
         switch (order) {
-            case RARITY_DESC  -> sorted.sort(Comparator.comparingInt((Reward r) ->
-                    rarityOrder(r.getRarity())).reversed().thenComparingDouble(Reward::getWeight).reversed());
-            case RARITY_ASC   -> sorted.sort(Comparator.comparingInt((Reward r) ->
-                    rarityOrder(r.getRarity())).thenComparingDouble(Reward::getWeight));
-            case WEIGHT_DESC  -> sorted.sort(Comparator.comparingDouble(Reward::getWeight).reversed());
-            case WEIGHT_ASC   -> sorted.sort(Comparator.comparingDouble(Reward::getWeight));
+            case RARITY_DESC -> sorted.sort(Comparator
+                    .comparingInt((Reward r) -> plugin.getRarityManager().getOrder(r.getRarity()))
+                    .reversed()
+                    .thenComparingDouble(Reward::getWeight).reversed());
+            case RARITY_ASC  -> sorted.sort(Comparator
+                    .comparingInt((Reward r) -> plugin.getRarityManager().getOrder(r.getRarity()))
+                    .thenComparingDouble(Reward::getWeight));
+            case WEIGHT_DESC -> sorted.sort(Comparator.comparingDouble(Reward::getWeight).reversed());
+            case WEIGHT_ASC  -> sorted.sort(Comparator.comparingDouble(Reward::getWeight));
             case CONFIG_ORDER -> { /* unsorted */ }
         }
         return sorted;
@@ -419,7 +386,7 @@ public class PreviewGUI {
     /* ─────────────────────── Slot Index Builder ─────────────────────── */
 
     private static int[] buildRewardSlots() {
-        int[] slots = new int[28]; // 4 rows × 7 cols
+        int[] slots = new int[28];
         int idx = 0;
         for (int row = 1; row <= 4; row++)
             for (int col = 1; col <= 7; col++)
@@ -440,31 +407,6 @@ public class PreviewGUI {
         return                   String.format("%.2f%%", pct);
     }
 
-    private String rarityColor(String rarity) {
-        if (rarity == null) return "\u00A7f";
-        return switch (rarity.toUpperCase()) {
-            case "COMMON"    -> "\u00A7f";
-            case "UNCOMMON"  -> "\u00A7a";
-            case "RARE"      -> "\u00A79";
-            case "EPIC"      -> "\u00A75";
-            case "LEGENDARY" -> "\u00A76";
-            case "MYTHIC"    -> "\u00A7d";
-            default          -> "\u00A77";
-        };
-    }
-
-    private int rarityOrder(String rarity) {
-        if (rarity == null) return 0;
-        return switch (rarity.toUpperCase()) {
-            case "UNCOMMON"  -> 1;
-            case "RARE"      -> 2;
-            case "EPIC"      -> 3;
-            case "LEGENDARY" -> 4;
-            case "MYTHIC"    -> 5;
-            default          -> 0;
-        };
-    }
-
     private Material parseMaterial(String name, Material fallback) {
         if (name == null || name.isEmpty()) return fallback;
         Material m = Material.matchMaterial(name.toUpperCase());
@@ -481,7 +423,6 @@ public class PreviewGUI {
         return title != null && title.startsWith(TITLE_PREFIX);
     }
 
-    /** Parse 0-based page index from inventory title. */
     public static int parsePageFromTitle(String title) {
         if (title == null || !title.contains("[")) return 0;
         try {

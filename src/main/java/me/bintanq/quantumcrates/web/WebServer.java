@@ -10,6 +10,7 @@ import io.javalin.http.staticfiles.Location;
 import me.bintanq.quantumcrates.QuantumCrates;
 import me.bintanq.quantumcrates.log.CrateLog;
 import me.bintanq.quantumcrates.model.Crate;
+import me.bintanq.quantumcrates.model.RarityDefinition;
 import me.bintanq.quantumcrates.serializer.GsonProvider;
 import me.bintanq.quantumcrates.util.Logger;
 import org.bukkit.Bukkit;
@@ -18,16 +19,12 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * WebServer — serves dashboard + REST API + WebSocket dari dalam JAR.
+ * WebServer — serves dashboard + REST API + WebSocket.
  *
- * Cara kerja (1 JAR, zero setup):
- *  1. Plugin start → WebServer start di background thread
- *  2. Admin ketik /qc web di game/console
- *  3. Plugin generate magic link: http://ip:port/?token=xxxxx
- *  4. Admin klik link → browser buka → Javalin validasi token → set JWT cookie → redirect ke /
- *  5. Dashboard (HTML/JS/CSS dari dalam JAR) terbuka, langsung terautentikasi
- *
- * Static files di-serve dari /resources/web/ dalam JAR classpath.
+ * New endpoints added for rarity management:
+ *   GET  /api/rarities        → list all rarity definitions
+ *   POST /api/rarities        → save updated rarity list (triggers reload)
+ *   POST /api/rarities/reload → reload rarities.yml from disk
  */
 public class WebServer {
 
@@ -35,10 +32,8 @@ public class WebServer {
     private final WebTokenManager  tokenManager;
     private       Javalin          app;
 
-    /** Active WebSocket sessions */
     private final ConcurrentHashMap<String, io.javalin.websocket.WsContext> wsSessions
             = new ConcurrentHashMap<>();
-    /** Rate limiter: IP → request timestamps */
     private final ConcurrentHashMap<String, LinkedList<Long>> rateLimiter
             = new ConcurrentHashMap<>();
 
@@ -54,7 +49,7 @@ public class WebServer {
 
     public void start() {
         String secret    = plugin.getConfig().getString("web.secret-token",
-                UUID.randomUUID().toString()); // fallback random jika belum diganti
+                UUID.randomUUID().toString());
         int    port      = plugin.getConfig().getInt("web.port", 7420);
         String cors      = plugin.getConfig().getString("web.cors-origins", "*");
         int    rateLimit = plugin.getConfig().getInt("web.rate-limit", 120);
@@ -64,17 +59,12 @@ public class WebServer {
         jwtVerifier  = JWT.require(jwtAlgorithm).withIssuer("quantumcrates").build();
 
         app = Javalin.create(config -> {
-
-            // ── 1. Static files dari dalam JAR ──
-            // File di /resources/web/ langsung di-serve.
-            // GET / → index.html otomatis
             config.staticFiles.add(sf -> {
                 sf.hostedPath = "/";
                 sf.directory  = "/web";
                 sf.location   = Location.CLASSPATH;
             });
 
-            // ── 2. CORS ──
             config.bundledPlugins.enableCors(c -> {
                 if ("*".equals(cors)) {
                     c.addRule(it -> it.anyHost());
@@ -89,7 +79,6 @@ public class WebServer {
             config.showJavalinBanner = false;
         });
 
-        // ── Before: rate limit + JWT auth (kecuali auth endpoints) ──
         app.before("/api/*", ctx -> {
             if (logReq) Logger.debug("[Web] " + ctx.method() + " " + ctx.path());
 
@@ -97,7 +86,6 @@ public class WebServer {
             boolean isPublic = path.equals("/api/auth/login") || path.equals("/api/auth/magic");
             if (isPublic) return;
 
-            // Rate limit
             String ip = ctx.ip();
             LinkedList<Long> ts = rateLimiter.computeIfAbsent(ip, k -> new LinkedList<>());
             long now = System.currentTimeMillis();
@@ -113,20 +101,17 @@ public class WebServer {
             String jwt = ctx.cookie("qc_jwt");
             if (jwt == null) {
                 String auth = ctx.header("Authorization");
-                if (auth != null && auth.startsWith("Bearer ")) {
-                    jwt = auth.substring(7);
-                }
+                if (auth != null && auth.startsWith("Bearer ")) jwt = auth.substring(7);
             }
 
             if (jwt == null) { ctx.status(401).json(err("Not authenticated.")); return; }
             try {
                 jwtVerifier.verify(jwt);
             } catch (JWTVerificationException e) {
-                ctx.status(401).json(err("Invalid or expired session. Please re-open the link."));
+                ctx.status(401).json(err("Invalid or expired session."));
             }
         });
 
-        // ── Routes ──
         registerMagicLinkRoute();
         registerAuthRoutes();
         registerCrateRoutes();
@@ -135,6 +120,7 @@ public class WebServer {
         registerPlayerRoutes();
         registerServerRoutes();
         registerMessagesRoutes();
+        registerRarityRoutes();   // NEW
         registerWebSocket();
 
         app.exception(Exception.class, (e, ctx) -> {
@@ -161,26 +147,18 @@ public class WebServer {
 
     /* ─────────────────────── Magic Link ─────────────────────── */
 
-    /**
-     * GET /api/auth/magic?token=xxxx
-     *
-     * Dipanggil browser saat admin klik link dari chat.
-     * Validasi token → issue JWT cookie → redirect ke dashboard.
-     */
     private void registerMagicLinkRoute() {
         app.get("/api/auth/magic", ctx -> {
             String token = ctx.queryParam("token");
             if (token == null || !tokenManager.consumeToken(token)) {
-                // Token invalid/expired → tampilkan error page
                 ctx.status(401).html(buildErrorPage(
-                    "Link Invalid or Expired",
-                    "This dashboard link has expired or already been used.",
-                    "Use <b>/qc web</b> in-game to generate a new link."
+                        "Link Invalid or Expired",
+                        "This dashboard link has expired or already been used.",
+                        "Use <b>/qc web</b> in-game to generate a new link."
                 ));
                 return;
             }
 
-            // Token valid → issue JWT (24 jam)
             String jwt = JWT.create()
                     .withIssuer("quantumcrates")
                     .withIssuedAt(new Date())
@@ -197,7 +175,6 @@ public class WebServer {
     /* ─────────────────────── Auth ─────────────────────── */
 
     private void registerAuthRoutes() {
-        // POST /api/auth/login — fallback login manual (opsional)
         app.post("/api/auth/login", ctx -> {
             Map<?,?> body = ctx.bodyAsClass(Map.class);
             String inputToken = (String) body.get("token");
@@ -218,12 +195,8 @@ public class WebServer {
             ctx.json(ok("Login successful", Map.of("jwt", jwt)));
         });
 
-        // GET /api/auth/check — cek apakah session masih valid
-        app.get("/api/auth/check", ctx -> {
-            ctx.json(ok("Session valid"));
-        });
+        app.get("/api/auth/check", ctx -> ctx.json(ok("Session valid")));
 
-        // POST /api/auth/logout
         app.post("/api/auth/logout", ctx -> {
             ctx.removeCookie("qc_jwt");
             ctx.json(ok("Logged out"));
@@ -234,9 +207,9 @@ public class WebServer {
 
     private void registerCrateRoutes() {
         app.get("/api/crates", ctx ->
-            ctx.result(GsonProvider.getGson().toJson(
-                Map.of("data", plugin.getCrateManager().getAllCrates())
-            ))
+                ctx.result(GsonProvider.getGson().toJson(
+                        Map.of("data", plugin.getCrateManager().getAllCrates())
+                ))
         );
 
         app.get("/api/crates/{id}", ctx -> {
@@ -275,13 +248,74 @@ public class WebServer {
         });
     }
 
+    /* ─────────────────────── Rarities (NEW) ─────────────────────── */
+
+    private void registerRarityRoutes() {
+        // GET /api/rarities — returns all rarity definitions ordered by tier
+        app.get("/api/rarities", ctx ->
+                ctx.result(GsonProvider.getGson().toJson(
+                        Map.of("data", plugin.getRarityManager().getAll())
+                ))
+        );
+
+        // POST /api/rarities — save a full updated list of rarities
+        app.post("/api/rarities", ctx -> {
+            try {
+                com.google.gson.JsonObject root = GsonProvider.getGson()
+                        .fromJson(ctx.body(), com.google.gson.JsonObject.class);
+
+                if (!root.has("rarities") || !root.get("rarities").isJsonArray()) {
+                    ctx.status(400).json(err("Body must be { rarities: [...] }"));
+                    return;
+                }
+
+                java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<
+                        List<RarityDefinition>>(){}.getType();
+                List<RarityDefinition> updated = GsonProvider.getGson()
+                        .fromJson(root.get("rarities"), listType);
+
+                if (updated.isEmpty()) {
+                    ctx.status(400).json(err("Cannot save empty rarity list."));
+                    return;
+                }
+
+                // Validate: each rarity must have an id
+                for (RarityDefinition def : updated) {
+                    if (def.getId() == null || def.getId().isBlank()) {
+                        ctx.status(400).json(err("Each rarity must have an 'id' field."));
+                        return;
+                    }
+                }
+
+                // Uppercase all IDs for consistency
+                updated.forEach(def -> def.setId(def.getId().toUpperCase()));
+
+                plugin.getRarityManager().saveRarities(updated);
+
+                // Broadcast to all WS clients so dashboard updates live
+                WebSocketBridge.getInstance().broadcastRaritiesUpdate(plugin.getRarityManager().getAll());
+
+                ctx.json(ok("Rarities saved. " + updated.size() + " tiers active."));
+            } catch (Exception e) {
+                ctx.status(400).json(err("Invalid rarities JSON: " + e.getMessage()));
+            }
+        });
+
+        // POST /api/rarities/reload — reload from disk without changing content
+        app.post("/api/rarities/reload", ctx -> {
+            plugin.getRarityManager().reload();
+            WebSocketBridge.getInstance().broadcastRaritiesUpdate(plugin.getRarityManager().getAll());
+            ctx.json(ok("Rarities reloaded from rarities.yml."));
+        });
+    }
+
     /* ─────────────────────── Keys ─────────────────────── */
 
     private void registerKeyRoutes() {
         app.get("/api/keys", ctx -> {
             ctx.json(Map.of(
-                "mode",    plugin.getKeyManager().getGlobalMode().name(),
-                "knownIds", plugin.getKeyManager().getKnownKeyIds()
+                    "mode",    plugin.getKeyManager().getGlobalMode().name(),
+                    "knownIds", plugin.getKeyManager().getKnownKeyIds()
             ));
         });
 
@@ -371,8 +405,8 @@ public class WebServer {
             try {
                 java.util.UUID uuid = java.util.UUID.fromString(ctx.pathParam("uuid"));
                 plugin.getPlayerDataManager().loadPlayer(uuid).thenAccept(data ->
-                    ctx.result(GsonProvider.getGson().toJson(Map.of(
-                        "uuid", uuid.toString(), "pityData", data.getPityData())))
+                        ctx.result(GsonProvider.getGson().toJson(Map.of(
+                                "uuid", uuid.toString(), "pityData", data.getPityData())))
                 ).get();
             } catch (Exception e) { ctx.status(400).json(err(e.getMessage())); }
         });
@@ -391,23 +425,16 @@ public class WebServer {
             } catch (Exception e) { ctx.status(400).json(err(e.getMessage())); }
         });
 
-        // GET /api/players/lookup?name=PlayerName
         app.get("/api/players/lookup", ctx -> {
             String name = ctx.queryParam("name");
             if (name == null || name.isEmpty()) {
-                ctx.status(400).json(err("Name is required"));
-                return;
+                ctx.status(400).json(err("Name is required")); return;
             }
-            // Cari player online dulu
             org.bukkit.entity.Player online = Bukkit.getPlayerExact(name);
             if (online != null) {
-                ctx.json(Map.of(
-                        "uuid", online.getUniqueId().toString(),
-                        "name", online.getName()
-                ));
+                ctx.json(Map.of("uuid", online.getUniqueId().toString(), "name", online.getName()));
                 return;
             }
-            // Kalau offline, cari dari cache
             @SuppressWarnings("deprecation")
             org.bukkit.OfflinePlayer offline = Bukkit.getOfflinePlayer(name);
             if (offline.hasPlayedBefore()) {
@@ -425,24 +452,22 @@ public class WebServer {
 
     private void registerServerRoutes() {
         app.get("/api/server/status", ctx ->
-            ctx.result(GsonProvider.getGson().toJson(Map.of(
-                "online",        true,
-                "onlinePlayers", Bukkit.getOnlinePlayers().size(),
-                "maxPlayers",    Bukkit.getMaxPlayers(),
-                "tps",           Math.round(Bukkit.getTPS()[0] * 100.0) / 100.0,
-                "version",       Bukkit.getVersion(),
-                "crateCount",    plugin.getCrateManager().getAllCrates().size(),
-                "timestamp",     System.currentTimeMillis()
-            )))
+                ctx.result(GsonProvider.getGson().toJson(Map.of(
+                        "online",        true,
+                        "onlinePlayers", Bukkit.getOnlinePlayers().size(),
+                        "maxPlayers",    Bukkit.getMaxPlayers(),
+                        "tps",           Math.round(Bukkit.getTPS()[0] * 100.0) / 100.0,
+                        "version",       Bukkit.getVersion(),
+                        "crateCount",    plugin.getCrateManager().getAllCrates().size(),
+                        "rarityCount",   plugin.getRarityManager().getAll().size(),
+                        "timestamp",     System.currentTimeMillis()
+                )))
         );
     }
 
     /* ─────────────────────── Messages Config ─────────────────────── */
 
-    /* ─────────────────────── Messages Config ─────────────────────── */
-
     private void registerMessagesRoutes() {
-        // GET /api/config/messages — return BOTH sections: { chat: {...}, gui: {...} }
         app.get("/api/config/messages", ctx -> {
             var chatSection = plugin.getConfig().getConfigurationSection("messages");
             var guiSection  = plugin.getConfig().getConfigurationSection("gui-messages");
@@ -450,44 +475,29 @@ public class WebServer {
             java.util.Map<String, String> chatMsgs = new java.util.LinkedHashMap<>();
             java.util.Map<String, String> guiMsgs  = new java.util.LinkedHashMap<>();
 
-            if (chatSection != null) {
-                chatSection.getKeys(false).forEach(k ->
-                        chatMsgs.put(k, chatSection.getString(k, "")));
-            }
-            if (guiSection != null) {
-                guiSection.getKeys(false).forEach(k ->
-                        guiMsgs.put(k, guiSection.getString(k, "")));
-            }
+            if (chatSection != null) chatSection.getKeys(false).forEach(k ->
+                    chatMsgs.put(k, chatSection.getString(k, "")));
+            if (guiSection != null) guiSection.getKeys(false).forEach(k ->
+                    guiMsgs.put(k, guiSection.getString(k, "")));
 
-            ctx.result(GsonProvider.getGson().toJson(
-                    java.util.Map.of("chat", chatMsgs, "gui", guiMsgs)
-            ));
+            ctx.result(GsonProvider.getGson().toJson(java.util.Map.of("chat", chatMsgs, "gui", guiMsgs)));
         });
 
-        // POST /api/config/messages — accepts { chat: {...}, gui: {...} }
-        // Also accepts legacy flat format { key: value } → treated as chat-only
         app.post("/api/config/messages", ctx -> {
             try {
                 com.google.gson.JsonObject root = GsonProvider.getGson()
                         .fromJson(ctx.body(), com.google.gson.JsonObject.class);
 
                 if (root.has("chat") || root.has("gui")) {
-                    // New format: { chat: {...}, gui: {...} }
-                    if (root.has("chat") && root.get("chat").isJsonObject()) {
+                    if (root.has("chat") && root.get("chat").isJsonObject())
                         root.get("chat").getAsJsonObject().entrySet().forEach(e ->
-                                plugin.getConfig().set("messages." + e.getKey(),
-                                        e.getValue().getAsString()));
-                    }
-                    if (root.has("gui") && root.get("gui").isJsonObject()) {
+                                plugin.getConfig().set("messages." + e.getKey(), e.getValue().getAsString()));
+                    if (root.has("gui") && root.get("gui").isJsonObject())
                         root.get("gui").getAsJsonObject().entrySet().forEach(e ->
-                                plugin.getConfig().set("gui-messages." + e.getKey(),
-                                        e.getValue().getAsString()));
-                    }
+                                plugin.getConfig().set("gui-messages." + e.getKey(), e.getValue().getAsString()));
                 } else {
-                    // Legacy flat format → treat as chat messages
                     root.entrySet().forEach(e ->
-                            plugin.getConfig().set("messages." + e.getKey(),
-                                    e.getValue().getAsString()));
+                            plugin.getConfig().set("messages." + e.getKey(), e.getValue().getAsString()));
                 }
 
                 plugin.saveConfig();
@@ -504,7 +514,6 @@ public class WebServer {
     private void registerWebSocket() {
         app.ws("/ws", ws -> {
             ws.onConnect(ctx -> {
-                // Auth via cookie (set saat magic link) atau query param
                 String jwt = ctx.cookie("qc_jwt");
                 if (jwt == null) jwt = ctx.queryParam("token");
 
@@ -519,11 +528,10 @@ public class WebServer {
                 wsSessions.put(ctx.sessionId(), ctx);
                 Logger.debug("[WS] Client connected: " + ctx.sessionId());
 
-                // Welcome + drain buffered events
                 sendToSession(ctx, Map.of(
-                    "type", "CONNECTED",
-                    "message", "Connected to QuantumCrates",
-                    "timestamp", System.currentTimeMillis()
+                        "type", "CONNECTED",
+                        "message", "Connected to QuantumCrates",
+                        "timestamp", System.currentTimeMillis()
                 ));
 
                 WebSocketBridge.getInstance().drainEventQueue().forEach(json -> {
@@ -571,7 +579,7 @@ public class WebServer {
     public int getConnectedClients() { return wsSessions.size(); }
     public WebTokenManager getTokenManager() { return tokenManager; }
 
-    /* ─────────────────────── Error Page HTML ─────────────────────── */
+    /* ─────────────────────── Error Page ─────────────────────── */
 
     private String buildErrorPage(String title, String msg, String hint) {
         return """

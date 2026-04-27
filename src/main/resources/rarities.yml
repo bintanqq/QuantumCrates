@@ -1,0 +1,87 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║           QuantumCrates — rarities.yml                          ║
+# ║  Fully customizable rarity tiers. Add, remove, rename freely.   ║
+# ║  Changes applied via /qc reload or from Web Dashboard.          ║
+# ╚══════════════════════════════════════════════════════════════════╝
+#
+# Each rarity needs:
+#   displayName    — shown in GUI/messages
+#   color          — Minecraft & color code for item names/lore
+#   hexColor       — CSS hex color for web dashboard
+#   order          — tier level (0 = lowest/most common, higher = rarer)
+#   borderMaterial — Preview GUI border when this is the highest rarity
+#   icon           — emoji for web dashboard display
+#
+# You can add UNLIMITED custom rarities! Examples:
+#   divine, transcendent, godlike, cursed, etc.
+#
+# NOTE: The 'id' is the KEY in lowercase (e.g. "common", "uncommon").
+#       In reward JSONs and pity config, use UPPERCASE (e.g. "COMMON").
+
+rarities:
+
+  common:
+    displayName: "Common"
+    color: "&f"
+    hexColor: "#aaaaaa"
+    order: 0
+    borderMaterial: "GRAY_STAINED_GLASS_PANE"
+    icon: "⬜"
+
+  uncommon:
+    displayName: "Uncommon"
+    color: "&a"
+    hexColor: "#00d97e"
+    order: 1
+    borderMaterial: "GREEN_STAINED_GLASS_PANE"
+    icon: "🟩"
+
+  rare:
+    displayName: "Rare"
+    color: "&9"
+    hexColor: "#4488ff"
+    order: 2
+    borderMaterial: "BLUE_STAINED_GLASS_PANE"
+    icon: "🔷"
+
+  epic:
+    displayName: "Epic"
+    color: "&5"
+    hexColor: "#9b59f5"
+    order: 3
+    borderMaterial: "MAGENTA_STAINED_GLASS_PANE"
+    icon: "🟣"
+
+  legendary:
+    displayName: "Legendary"
+    color: "&6"
+    hexColor: "#f5a623"
+    order: 4
+    borderMaterial: "ORANGE_STAINED_GLASS_PANE"
+    icon: "🟡"
+
+  mythic:
+    displayName: "Mythic"
+    color: "&d"
+    hexColor: "#ff44aa"
+    order: 5
+    borderMaterial: "PURPLE_STAINED_GLASS_PANE"
+    icon: "🩷"
+
+# ─── CUSTOM RARITY EXAMPLES (uncomment to enable) ───────────────────
+#
+#  divine:
+#    displayName: "&b&lDivine"
+#    color: "&b"
+#    hexColor: "#00e5d4"
+#    order: 6
+#    borderMaterial: "CYAN_STAINED_GLASS_PANE"
+#    icon: "✨"
+#
+#  cursed:
+#    displayName: "&4Cursed"
+#    color: "&4"
+#    hexColor: "#aa0000"
+#    order: 2
+#    borderMaterial: "RED_STAINED_GLASS_PANE"
+#    icon: "💀"

@@ -1,8 +1,8 @@
 package me.bintanq.quantumcrates.web;
 
-import me.bintanq.quantumcrates.QuantumCrates;
 import me.bintanq.quantumcrates.log.CrateLog;
 import me.bintanq.quantumcrates.model.Crate;
+import me.bintanq.quantumcrates.model.RarityDefinition;
 import me.bintanq.quantumcrates.serializer.GsonProvider;
 import me.bintanq.quantumcrates.util.Logger;
 
@@ -10,50 +10,34 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * WebSocketBridge — event bus antara plugin Minecraft dan WebServer.
- *
- * Pattern: singleton, semua manager (CrateManager, KeyManager, dll)
- * memanggil WebSocketBridge.getInstance().broadcastXxx() setelah events.
- * WebSocketBridge meneruskan ke WebServer.broadcast() yang push ke semua WS client.
- *
- * Kalau WebServer belum start (atau belum ada client), events di-buffer
- * di in-memory queue dan di-drain saat client pertama connect.
+ * WebSocketBridge — event bus between Minecraft plugin and WebServer.
  */
 public class WebSocketBridge {
 
-    /* ─────────────────────── Singleton ─────────────────────── */
     private static WebSocketBridge instance;
     public static WebSocketBridge getInstance() {
         if (instance == null) instance = new WebSocketBridge();
         return instance;
     }
 
-    /* ─────────────────────── Event Types ─────────────────────── */
     public enum EventType {
-        CRATE_OPEN,
-        CRATE_UPDATE,
-        CRATE_RELOAD,
-        PLAYER_JOIN,
-        PLAYER_QUIT,
-        KEY_TRANSACTION,
-        PITY_UPDATE,
+        CRATE_OPEN, CRATE_UPDATE, CRATE_RELOAD,
+        PLAYER_JOIN, PLAYER_QUIT,
+        KEY_TRANSACTION, PITY_UPDATE,
         SERVER_STATS,
-        PING,
-        PONG
+        RARITIES_UPDATE,
+        PING, PONG
     }
 
-    /* ─────────────────────── State ─────────────────────── */
-    private WebServer webServer; // set saat WebServer start
+    private WebServer webServer;
     private final ConcurrentLinkedQueue<String> buffer = new ConcurrentLinkedQueue<>();
 
     private WebSocketBridge() {}
 
-    /** Dipanggil dari QuantumCrates.onEnable() setelah WebServer.start() */
     public void setWebServer(WebServer ws) { this.webServer = ws; }
 
     /* ─────────────────────── Broadcast Events ─────────────────────── */
 
-    /** Broadcast crate opening event — dipanggil dari CrateManager */
     public void broadcastCrateOpen(CrateLog log) {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("uuid",          log.getUuid().toString());
@@ -68,7 +52,6 @@ public class WebSocketBridge {
         dispatch(EventType.CRATE_OPEN, p);
     }
 
-    /** Broadcast crate config update — null = full reload */
     public void broadcastCrateUpdate(Crate crate) {
         Map<String, Object> p = new LinkedHashMap<>();
         if (crate != null) {
@@ -80,8 +63,7 @@ public class WebSocketBridge {
         dispatch(EventType.CRATE_UPDATE, p);
     }
 
-    /** Broadcast key transaction — dipanggil dari KeyManager.giveKey() */
-    public void broadcastKeyTransaction(UUID uuid, String keyId, int delta, int balance) {
+    public void broadcastKeyTransaction(java.util.UUID uuid, String keyId, int delta, int balance) {
         dispatch(EventType.KEY_TRANSACTION, Map.of(
                 "uuid",    uuid.toString(),
                 "keyId",   keyId,
@@ -90,8 +72,7 @@ public class WebSocketBridge {
         ));
     }
 
-    /** Broadcast pity update — dipanggil dari CrateManager setelah roll */
-    public void broadcastPityUpdate(UUID uuid, String crateId, int newPity, boolean wasReset) {
+    public void broadcastPityUpdate(java.util.UUID uuid, String crateId, int newPity, boolean wasReset) {
         dispatch(EventType.PITY_UPDATE, Map.of(
                 "uuid",     uuid.toString(),
                 "crateId",  crateId,
@@ -100,7 +81,6 @@ public class WebSocketBridge {
         ));
     }
 
-    /** Broadcast server stats snapshot — dipanggil dari scheduled task */
     public void broadcastServerStats(int online, double tps, long openingsToday) {
         dispatch(EventType.SERVER_STATS, Map.of(
                 "onlinePlayers", online,
@@ -109,23 +89,28 @@ public class WebSocketBridge {
         ));
     }
 
+    /** Broadcast updated rarity definitions to all web clients. */
+    public void broadcastRaritiesUpdate(List<RarityDefinition> rarities) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("rarities", GsonProvider.getGson().toJsonTree(rarities));
+        dispatch(EventType.RARITIES_UPDATE, p);
+    }
+
     /* ─────────────────────── Internal Dispatch ─────────────────────── */
 
     private void dispatch(EventType type, Map<String, Object> payload) {
         if (webServer != null) {
             webServer.broadcast(type, payload);
         } else {
-            // Buffer — drain saat WebServer start
             Map<String, Object> event = new LinkedHashMap<>();
             event.put("type", type.name());
             event.put("timestamp", System.currentTimeMillis());
             event.putAll(payload);
             buffer.offer(GsonProvider.getCompact().toJson(event));
-            while (buffer.size() > 500) buffer.poll(); // bounded
+            while (buffer.size() > 500) buffer.poll();
         }
     }
 
-    /** Drain buffer — dipanggil WebServer saat client pertama connect */
     public ConcurrentLinkedQueue<String> drainEventQueue() {
         ConcurrentLinkedQueue<String> snap = new ConcurrentLinkedQueue<>(buffer);
         buffer.clear();

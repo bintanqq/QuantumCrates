@@ -5,7 +5,6 @@ import me.bintanq.quantumcrates.log.LogManager;
 import me.bintanq.quantumcrates.model.Crate;
 import me.bintanq.quantumcrates.model.PlayerData;
 import me.bintanq.quantumcrates.model.reward.RewardResult;
-import me.bintanq.quantumcrates.processor.RewardProcessor;
 import me.bintanq.quantumcrates.serializer.GsonProvider;
 import me.bintanq.quantumcrates.util.Logger;
 import me.bintanq.quantumcrates.util.MessageManager;
@@ -26,34 +25,24 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * CrateManager — central orchestrator for all crate operations.
  *
- * Responsibilities:
- *  - Load/reload crate configs from /crates/*.json
- *  - Validate key requirements (multi-key, virtual, physical, custom plugins)
- *  - Enforce cooldown and schedule restrictions
- *  - Drive the roll pipeline (RewardProcessor → pity update → delivery → log)
- *  - Mass-open batch processing with per-tick throttling to avoid TPS spikes
+ * Rarity comparisons delegated to RarityManager (no hardcoded tier lists).
  */
 public class CrateManager {
 
     private final QuantumCrates   plugin;
     private final PlayerDataManager playerDataManager;
-    private final RewardProcessor rewardProcessor;
+    private final me.bintanq.quantumcrates.processor.RewardProcessor rewardProcessor;
     private final LogManager      logManager;
     private final KeyManager      keyManager;
 
-    /** id → Crate loaded from JSON. */
     private final ConcurrentHashMap<String, Crate> crateRegistry = new ConcurrentHashMap<>();
-
-    /** Players currently in an opening animation (prevents double-open). */
     private final Set<UUID> openingLock = ConcurrentHashMap.newKeySet();
-
-    /** Directory where crate JSON files are stored. */
     private File cratesDir;
 
     public CrateManager(
             QuantumCrates plugin,
             PlayerDataManager playerDataManager,
-            RewardProcessor rewardProcessor,
+            me.bintanq.quantumcrates.processor.RewardProcessor rewardProcessor,
             LogManager logManager,
             KeyManager keyManager
     ) {
@@ -66,10 +55,6 @@ public class CrateManager {
 
     /* ─────────────────────── Config Loading ─────────────────────── */
 
-    /**
-     * Loads all *.json files from /plugins/QuantumCrates/crates/.
-     * Clears existing registry first (reload-safe).
-     */
     public void loadAllCrates() {
         cratesDir = new File(plugin.getDataFolder(), "crates");
         if (!cratesDir.exists()) {
@@ -89,7 +74,6 @@ public class CrateManager {
             try (FileReader reader = new FileReader(file, StandardCharsets.UTF_8)) {
                 Crate crate = GsonProvider.getGson().fromJson(reader, Crate.class);
                 if (crate.getId() == null || crate.getId().isEmpty()) {
-                    // Infer ID from file name if not set
                     crate.setId(file.getName().replace(".json", ""));
                 }
                 crateRegistry.put(crate.getId(), crate);
@@ -102,10 +86,6 @@ public class CrateManager {
         Logger.info("Loaded &e" + loaded + " &fcrates.");
     }
 
-    /**
-     * Saves a crate's current state to its JSON file.
-     * Used by Web Interface API (Phase 2) after remote edits.
-     */
     public void saveCrate(Crate crate) {
         File file = new File(cratesDir, crate.getId() + ".json");
         try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
@@ -117,24 +97,11 @@ public class CrateManager {
 
     /* ─────────────────────── Open Validation ─────────────────────── */
 
-    /**
-     * Result enum for open attempt validation.
-     */
     public enum OpenResult {
-        SUCCESS,
-        NOT_FOUND,
-        DISABLED,
-        NOT_SCHEDULED,
-        ON_COOLDOWN,
-        MISSING_KEY,
-        ALREADY_OPENING
+        SUCCESS, NOT_FOUND, DISABLED, NOT_SCHEDULED,
+        ON_COOLDOWN, MISSING_KEY, ALREADY_OPENING
     }
 
-    /**
-     * Validates whether a player can open a crate right now.
-     * Returns {@link OpenResult} without performing the actual open.
-     * Main-thread safe.
-     */
     public OpenResult canOpen(Player player, String crateId) {
         Crate crate = crateRegistry.get(crateId);
         if (crate == null)       return OpenResult.NOT_FOUND;
@@ -154,14 +121,6 @@ public class CrateManager {
 
     /* ─────────────────────── Single Open ─────────────────────── */
 
-    /**
-     * Attempts to open a crate for a player.
-     * Consumes keys, rolls reward, updates pity, delivers item, writes log.
-     *
-     * MUST be called from the main thread.
-     *
-     * @return true if the opening was successful
-     */
     public boolean openCrate(Player player, String crateId) {
         OpenResult check = canOpen(player, crateId);
         if (check != OpenResult.SUCCESS) {
@@ -172,22 +131,21 @@ public class CrateManager {
         Crate      crate = crateRegistry.get(crateId);
         PlayerData data  = playerDataManager.getOrEmpty(player.getUniqueId());
 
-        // Lock player from double-opening
         openingLock.add(player.getUniqueId());
 
         try {
-            // 1. Consume keys
             boolean consumed = keyManager.consumeKeys(player, crate);
             if (!consumed) {
                 openingLock.remove(player.getUniqueId());
                 return false;
             }
 
-            // 2. Roll reward
             RewardResult result = rewardProcessor.roll(crate, data);
 
-            // 3. Update pity
-            boolean isRare = isRareReward(result.getReward().getRarity(), crate.getPity().getRareRarityMinimum());
+            // Pity update — delegate rarity comparison to RarityManager
+            boolean isRare = plugin.getRarityManager()
+                    .isAtOrAbove(result.getReward().getRarity(), crate.getPity().getRareRarityMinimum());
+
             if (isRare || result.isPityGuaranteed()) {
                 playerDataManager.resetPity(player.getUniqueId(), crateId);
                 me.bintanq.quantumcrates.web.WebSocketBridge.getInstance()
@@ -199,20 +157,16 @@ public class CrateManager {
                         .broadcastPityUpdate(player.getUniqueId(), crateId, newPity, false);
             }
 
-            // 4. Update cooldown
             if (crate.getCooldownMs() > 0) {
                 playerDataManager.setLastOpen(player.getUniqueId(), crateId);
             }
 
-            // 5. Deliver reward (main thread)
             deliverReward(player, result);
 
-            // 5b. Play opening particle effect
             if (plugin.getParticleManager() != null) {
                 plugin.getParticleManager().playOpenEffect(crate, player.getLocation());
             }
 
-            // 6. Broadcast
             if (result.getReward().isBroadcast()) {
                 String msg = result.getReward().getBroadcastMessage()
                         .replace("{player}", player.getName())
@@ -221,7 +175,6 @@ public class CrateManager {
                 plugin.getServer().broadcastMessage(msg);
             }
 
-            // 7. Log (async via buffer)
             Location loc = player.getLocation();
             me.bintanq.quantumcrates.log.CrateLog crateLog = new me.bintanq.quantumcrates.log.CrateLog(
                     player.getUniqueId(), player.getName(),
@@ -235,10 +188,8 @@ public class CrateManager {
             );
             logManager.log(crateLog);
 
-            // 8. Broadcast to WebSocket clients (Phase 2)
             me.bintanq.quantumcrates.web.WebSocketBridge.getInstance().broadcastCrateOpen(crateLog);
 
-            // 9. Increment daily stats counter
             if (plugin.getStatsScheduler() != null) {
                 plugin.getStatsScheduler().incrementOpenings();
             }
@@ -252,16 +203,6 @@ public class CrateManager {
 
     /* ─────────────────────── Mass Open ─────────────────────── */
 
-    /**
-     * Performs a mass-open: opens up to {@code count} crates in sequence.
-     *
-     * To prevent TPS spikes, we batch 10 opens per tick and distribute
-     * the remainder across subsequent ticks using a BukkitRunnable.
-     *
-     * @param player  The opener
-     * @param crateId Target crate
-     * @param count   Number of crates to open (-1 = open as many as player has keys for)
-     */
     public void massOpen(Player player, String crateId, int count) {
         Crate crate = crateRegistry.get(crateId);
         if (crate == null || !crate.isMassOpenEnabled()) {
@@ -271,10 +212,9 @@ public class CrateManager {
 
         int maxAllowed = crate.getMassOpenLimit();
         int actual     = (count <= 0 || (maxAllowed > 0 && count > maxAllowed))
-                         ? maxAllowed
-                         : count;
+                ? maxAllowed
+                : count;
 
-        // Count how many opens the player can actually perform
         int canPerform = keyManager.countPossibleOpens(player, crate);
         actual = Math.min(actual <= 0 ? canPerform : actual, canPerform);
 
@@ -286,8 +226,7 @@ public class CrateManager {
         final int totalOpens = actual;
         final int[] remaining = {totalOpens};
         final int[] successCount = {0};
-
-        final int PER_TICK = 10; // opens per server tick — keep TPS stable
+        final int PER_TICK = 10;
 
         new BukkitRunnable() {
             @Override
@@ -303,7 +242,6 @@ public class CrateManager {
 
                 int batch = Math.min(PER_TICK, remaining[0]);
                 for (int i = 0; i < batch; i++) {
-                    // Check keys before each open in mass-open to be accurate
                     if (canOpen(player, crateId) != OpenResult.SUCCESS) {
                         remaining[0] = 0;
                         break;
@@ -345,14 +283,14 @@ public class CrateManager {
             case NOT_SCHEDULED -> {
                 Crate crate  = crateRegistry.get(crateId);
                 String sched = crate != null && crate.getSchedule() != null
-                               ? crate.getSchedule().getNextOpenDescription() : "Unknown";
+                        ? crate.getSchedule().getNextOpenDescription() : "Unknown";
                 MessageManager.send(player, "crate-not-open", "{crate}", crateId, "{schedule}", sched);
             }
             case ON_COOLDOWN -> {
                 Crate crate = crateRegistry.get(crateId);
                 long rem    = crate != null
-                              ? playerDataManager.getRemainingCooldown(player.getUniqueId(), crateId, crate.getCooldownMs())
-                              : 0;
+                        ? playerDataManager.getRemainingCooldown(player.getUniqueId(), crateId, crate.getCooldownMs())
+                        : 0;
                 MessageManager.send(player, "cooldown-active", "{time}", TimeUtil.formatDuration(rem));
             }
             case MISSING_KEY     -> MessageManager.send(player, "key-not-found", "{key}", crateId);
@@ -361,29 +299,26 @@ public class CrateManager {
         }
     }
 
-    /* ─────────────────────── Rarity Helpers ─────────────────────── */
-
-    private static final List<String> RARITY_ORDER = List.of(
-            "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"
-    );
-
-    private boolean isRareReward(String rewardRarity, String minimumRarity) {
-        int rewardIdx  = RARITY_ORDER.indexOf(rewardRarity.toUpperCase());
-        int minimumIdx = RARITY_ORDER.indexOf(minimumRarity.toUpperCase());
-        if (rewardIdx < 0) return false;
-        return rewardIdx >= minimumIdx;
-    }
-
     /* ─────────────────────── Example Crate ─────────────────────── */
 
     private void createExampleCrate() {
-        // Writes a starter JSON so new users have a reference
         File example = new File(cratesDir, "example_crate.json");
+
+        // Build reward rarities dynamically from RarityManager
+        RarityManager rm = plugin.getRarityManager();
+        List<me.bintanq.quantumcrates.model.RarityDefinition> rarities = rm.getAll();
+
+        // Get lowest and highest rarity IDs for example
+        String lowestRarity   = rarities.isEmpty() ? "COMMON"    : rarities.get(0).getId();
+        String midRarity      = rarities.size() > 2 ? rarities.get(2).getId() : rarities.get(rarities.size() / 2).getId();
+        String highestRarity  = rarities.isEmpty() ? "MYTHIC"    : rarities.get(rarities.size() - 1).getId();
+        String pityMinRarity  = rarities.size() >= 5 ? rarities.get(rarities.size() - 2).getId() : highestRarity;
+
         String json = """
             {
               "id": "example_crate",
               "displayName": "&b&lExample Crate",
-              "hologramLines": ["&b&lEXAMPLE CRATE", "&7Klik kiri untuk preview!", "&7Klik kanan untuk buka!"],
+              "hologramLines": ["&b&lEXAMPLE CRATE", "&7Left-click to preview!", "&7Right-click to open!"],
               "requiredKeys": [
                 { "keyId": "example_key", "amount": 1, "type": "VIRTUAL" }
               ],
@@ -392,7 +327,7 @@ public class CrateManager {
                   "id": "diamond",
                   "displayName": "&bDiamond",
                   "weight": 50.0,
-                  "rarity": "COMMON",
+                  "rarity": "%s",
                   "type": "VANILLA",
                   "material": "DIAMOND",
                   "amount": 1
@@ -401,65 +336,47 @@ public class CrateManager {
                   "id": "emerald",
                   "displayName": "&aEmerald",
                   "weight": 25.0,
-                  "rarity": "UNCOMMON",
+                  "rarity": "%s",
                   "type": "VANILLA",
                   "material": "EMERALD",
                   "amount": 2
                 },
                 {
-                  "id": "gold_block",
-                  "displayName": "&6Gold Block",
-                  "weight": 15.0,
-                  "rarity": "RARE",
-                  "type": "VANILLA",
-                  "material": "GOLD_BLOCK",
-                  "amount": 1
-                },
-                {
                   "id": "netherite",
                   "displayName": "&4&lNetherite Ingot",
                   "weight": 5.0,
-                  "rarity": "LEGENDARY",
+                  "rarity": "%s",
                   "type": "VANILLA",
                   "material": "NETHERITE_INGOT",
                   "amount": 1,
                   "broadcast": true,
-                  "broadcastMessage": "&e{player} &7memenangkan &4Netherite&7 dari Example Crate!"
+                  "broadcastMessage": "&e{player} &7won &4Netherite&7 from Example Crate!"
                 },
                 {
                   "id": "cmd_reward",
                   "displayName": "&d&lMythic Command",
                   "weight": 1.0,
-                  "rarity": "MYTHIC",
+                  "rarity": "%s",
                   "type": "COMMAND",
                   "commands": [
-                    "console: give {player} minecraft:nether_star 5",
-                    "console: broadcast &d{player} mendapat Mythic reward!"
+                    "console: give {player} minecraft:nether_star 5"
                   ],
                   "broadcast": true,
-                  "broadcastMessage": "&d✦ {player} mendapat reward MYTHIC dari crate!"
+                  "broadcastMessage": "&d✦ {player} got a top-tier reward!"
                 }
               ],
               "preview": {
-                "title": "&0&lPreview &8» &b{crate}",
                 "sortOrder": "RARITY_DESC",
-                "borderMaterial": null,
                 "showChance": true,
-                "showWeight": false,
                 "showPity": true,
                 "showKeyBalance": true,
-                "chanceFormat": "&7Chance: &e{chance}",
-                "rewardFooterLore": [],
-                "prevButtonMaterial": "ARROW",
-                "nextButtonMaterial": "ARROW",
-                "closeButtonMaterial": "BARRIER",
                 "showActualItem": true
               },
               "cooldownMs": 3600000,
               "pity": {
                 "enabled": true,
                 "threshold": 50,
-                "rareRarityMinimum": "LEGENDARY",
+                "rareRarityMinimum": "%s",
                 "bonusChancePerOpen": 2.0,
                 "softPityStart": 40
               },
@@ -467,7 +384,8 @@ public class CrateManager {
               "massOpenLimit": 64,
               "enabled": true
             }
-            """;
+            """.formatted(lowestRarity, midRarity, pityMinRarity, highestRarity, pityMinRarity);
+
         try (FileWriter w = new FileWriter(example, StandardCharsets.UTF_8)) {
             w.write(json);
         } catch (IOException e) {
@@ -490,7 +408,6 @@ public class CrateManager {
     public void registerCrate(Crate crate) {
         crateRegistry.put(crate.getId(), crate);
         saveCrate(crate);
-        // Refresh hologram + particles for newly registered crate
         if (plugin.getHologramManager() != null) plugin.getHologramManager().spawnHologram(crate);
         if (plugin.getParticleManager()  != null) plugin.getParticleManager().startIdleParticles(crate);
     }
@@ -499,14 +416,7 @@ public class CrateManager {
         crateRegistry.remove(id);
         File file = new File(cratesDir, id + ".json");
         if (file.exists()) file.delete();
-        // Tear down hologram + particles
         if (plugin.getHologramManager() != null) plugin.getHologramManager().removeHologram(id);
         if (plugin.getParticleManager()  != null) plugin.getParticleManager().stopIdleParticles(id);
-    }
-
-    /* ─────────────────────── Helpers ─────────────────────── */
-
-    private String colorize(String s) {
-        return s.replace("&", "\u00A7");
     }
 }
