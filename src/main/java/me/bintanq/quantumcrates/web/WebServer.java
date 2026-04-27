@@ -223,9 +223,13 @@ public class WebServer {
             try {
                 Crate crate = GsonProvider.getGson().fromJson(ctx.body(), Crate.class);
                 if (crate.getId() == null) crate.setId(ctx.pathParam("id"));
-                plugin.getCrateManager().registerCrate(crate);
-                broadcast(WebSocketBridge.EventType.CRATE_UPDATE,
-                        Map.of("crateId", crate.getId()));
+
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    plugin.getCrateManager().registerCrate(crate);
+                    broadcast(WebSocketBridge.EventType.CRATE_UPDATE,
+                            Map.of("crateId", crate.getId()));
+                });
+
                 ctx.json(ok("Crate saved: " + crate.getId()));
             } catch (Exception e) {
                 ctx.status(400).json(err("Invalid crate JSON: " + e.getMessage()));
@@ -237,7 +241,8 @@ public class WebServer {
             if (plugin.getCrateManager().getCrate(id) == null) {
                 ctx.status(404).json(err("Crate not found: " + id)); return;
             }
-            plugin.getCrateManager().removeCrate(id);
+            Bukkit.getScheduler().runTask(plugin, () ->
+                    plugin.getCrateManager().removeCrate(id));
             ctx.json(ok("Crate deleted: " + id));
         });
 

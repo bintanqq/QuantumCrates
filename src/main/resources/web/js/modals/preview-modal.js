@@ -51,7 +51,7 @@ const PreviewModal = {
           <div class="preview-stat-val" style="color:var(--gold)">
             ${
               sorted.filter(r =>
-                State.rarityOrder(r.rarity) >= State.rarityOrder('LEGENDARY') ||| 999
+                State.rarityOrder(r.rarity) >= State.rarityOrder(State.rarities[State.rarities.length - 1]?.id || 'LEGENDARY')
               ).length
             }
           </div>

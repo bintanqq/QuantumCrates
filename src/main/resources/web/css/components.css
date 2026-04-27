@@ -178,3 +178,22 @@ tr:hover td{background:var(--surface)}
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;color:var(--text3);text-align:center;gap:10px}
 .empty-state svg{opacity:.3}
 .empty-state p{font-size:12px;max-width:220px;line-height:1.6}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.slider-range {
+    cursor: grab;
+    touch-action: none;
+    pointer-events: all;
+}
+.slider-range:active {
+    cursor: grabbing;
+}

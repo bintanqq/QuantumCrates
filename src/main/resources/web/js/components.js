@@ -35,7 +35,6 @@ function AddCard(onClick) {
   return div;
 }
 
-/* Weight Slider Row */
 function SliderRow(reward, totalWeight, onChange) {
   const color = Utils.rarityColor(reward.rarity);
   const div = Utils.el('div', 'slider-row');
@@ -51,10 +50,10 @@ function SliderRow(reward, totalWeight, onChange) {
       <span class="slider-rarity-dot" style="background:${color};box-shadow:0 0 5px ${color}60"></span>
       ${Utils.strip(reward.displayName) || reward.id}
     </div>
-    <input type="range" class="slider-range" min="0.1" max="50" step="0.5" value="${reward.weight}"/>
+    <input type="range" class="slider-range" min="0.1" max="50" step="0.5" value="${reward.weight}" style="cursor:grab;touch-action:none;"/>
     <div class="slider-controls">
       <button class="slider-btn" data-action="minus">−</button>
-      <input class="slider-val" type="number" min="0.1" step="0.5" value="${reward.weight}"/>
+      <input class="slider-val" type="number" min="0.1" step="0.5" value="${reward.weight}" inputmode="decimal"/>
       <span class="slider-pct">%</span>
       <button class="slider-btn" data-action="plus">+</button>
     </div>
@@ -74,10 +73,21 @@ function SliderRow(reward, totalWeight, onChange) {
     onChange?.(reward);
   };
 
-  range.oninput  = () => update(range.value);
-  numIn.onchange = () => update(numIn.value);
-  div.querySelector('[data-action="minus"]').onclick = () => update(reward.weight - 0.5);
-  div.querySelector('[data-action="plus"]').onclick  = () => update(reward.weight + 0.5);
+  // Pake 'input' bukan 'oninput' attribute supaya drag bener
+  range.addEventListener('input', () => update(range.value));
+
+  // Prevent parent scroll/drag intercept saat drag slider
+  range.addEventListener('mousedown', (e) => e.stopPropagation());
+  range.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+
+  numIn.addEventListener('change', () => update(numIn.value));
+  // Update live saat ngetik juga
+  numIn.addEventListener('input', () => {
+    if (numIn.value !== '' && !isNaN(numIn.value)) update(numIn.value);
+  });
+
+  div.querySelector('[data-action="minus"]').addEventListener('click', () => update(reward.weight - 0.5));
+  div.querySelector('[data-action="plus"]').addEventListener('click',  () => update(reward.weight + 0.5));
 
   return div;
 }

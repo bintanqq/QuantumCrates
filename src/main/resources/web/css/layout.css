@@ -1,8 +1,8 @@
 /* ══ LOGIN ══ */
 .login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:100;background:var(--bg)}
 .login-bg{position:absolute;inset:0;overflow:hidden}
-.login-bg::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(0,229,212,.06),transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%)}
-.login-card{position:relative;width:420px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-xl);padding:36px;box-shadow:var(--shadow-lg),0 0 80px rgba(0,229,212,.04)}
+.login-bg::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(0,74,173,.06),transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%)}
+.login-card{position:relative;width:420px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-xl);padding:36px;box-shadow:var(--shadow-lg),0 0 80px rgba(0,74,173,.06)}
 .login-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px}
 .login-logo-icon{width:42px;height:42px;background:linear-gradient(135deg,var(--cyan),#004a44);border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-cyan)}
 .login-logo-text{font-size:15px;font-weight:800;letter-spacing:.5px}
@@ -30,38 +30,66 @@
 .sidebar-logo-text{font-size:12.5px;font-weight:800;letter-spacing:.5px}
 .sidebar-logo-text span{color:var(--cyan)}
 .sidebar-logo-ver{font-size:9.5px;color:var(--text3)}
+
+/* ── Nav item — satu definisi ── */
+.nav-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 16px;
+    color:var(--text2);
+    border-radius:0;
+    transition:all .2s var(--ease);
+    font-weight:500;
+    font-size:12.5px;
+    cursor:pointer;
+    position:relative;
+    border-left:2px solid transparent;
+    white-space:nowrap;
+    overflow:hidden;
+}
+.nav-item:hover{color:var(--text);background:var(--cyan-dim)}
+.nav-item.active{color:var(--cyan);background:var(--cyan-dim2);border-left-color:var(--cyan)}
+
+.nav-icon{width:16px;height:16px;min-width:16px;stroke:currentColor;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--cyan);color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;animation:pulse-badge 2s infinite}
+@keyframes pulse-badge{0%,100%{opacity:1}50%{opacity:.6}}
+
+.nav-group-label{font-size:9px;font-weight:700;color:var(--text4);letter-spacing:1.2px;text-transform:uppercase;padding:8px 16px 4px;white-space:nowrap;overflow:hidden;transition:all .3s var(--ease)}
+
+/* ── Collapsed state ── */
 .sidebar.collapsed .sidebar-logo-text,
 .sidebar.collapsed .sidebar-logo-ver,
 .sidebar.collapsed .nav-group-label,
-.sidebar.collapsed .nav-item span:not(.nav-icon),
 .sidebar.collapsed .server-info,
-.sidebar.collapsed .btn-logout span,
-.sidebar.collapsed .nav-badge {
-    display: none;
+.sidebar.collapsed .btn-logout span {
+    opacity:0;
+    width:0;
+    overflow:hidden;
+    white-space:nowrap;
 }
 
-.sidebar.collapsed .nav-item {
-    justify-content: center;
-    padding: 9px;
+.sidebar.collapsed .nav-badge{display:none}
+
+.sidebar.collapsed .nav-item{
+    justify-content:center;
+    padding:9px;
+    gap:0;
 }
 
-.sidebar.collapsed .server-card {
-    justify-content: center;
-    padding: 9px;
+.sidebar.collapsed .nav-item > *:not(.nav-icon){
+    opacity:0;
+    width:0;
+    max-width:0;
+    overflow:hidden;
+    margin:0;
+    padding:0;
 }
 
-.sidebar.collapsed .btn-logout {
-    justify-content: center;
-    padding: 8px;
-}
-.nav-group-label{font-size:9px;font-weight:700;color:var(--text4);letter-spacing:1.2px;text-transform:uppercase;padding:8px 16px 4px;white-space:nowrap}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--text2);border-radius:0;transition:all .2s;font-weight:500;font-size:12.5px;cursor:pointer;position:relative;border-left:2px solid transparent;white-space:nowrap;overflow:hidden}
-.nav-item:hover{color:var(--text);background:var(--cyan-dim)}
-.nav-item.active{color:var(--cyan);background:var(--cyan-dim2);border-left-color:var(--cyan)}
-.nav-icon{width:16px;height:16px;min-width:16px;stroke:currentColor;flex-shrink:0}
-.nav-badge{margin-left:auto;background:var(--cyan);color:#000;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;animation:pulse-badge 2s infinite}
-@keyframes pulse-badge{0%,100%{opacity:1}50%{opacity:.6}}
+.sidebar.collapsed .server-card{justify-content:center;padding:9px}
+.sidebar.collapsed .btn-logout{justify-content:center;padding:8px}
 
+/* ══ SIDEBAR BOTTOM ══ */
 .sidebar-bottom{padding:12px;border-top:1px solid var(--border)}
 .server-card{display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden}
 .server-status-dot{width:7px;height:7px;min-width:7px;border-radius:50%;background:var(--text3);transition:background .4s}

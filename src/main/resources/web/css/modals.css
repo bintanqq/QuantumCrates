@@ -26,12 +26,9 @@
 .rarity-picker{display:flex;gap:6px;flex-wrap:wrap}
 .rarity-opt{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid transparent;transition:all .2s;background:var(--bg3);opacity:.4}
 .rarity-opt.active{opacity:1}
-.rarity-opt[data-r="COMMON"]   {border-color:#aaa;color:#aaa}
-.rarity-opt[data-r="UNCOMMON"] {border-color:var(--r-uncommon);color:var(--r-uncommon)}
-.rarity-opt[data-r="RARE"]     {border-color:var(--r-rare);color:var(--r-rare)}
-.rarity-opt[data-r="EPIC"]     {border-color:var(--r-epic);color:var(--r-epic)}
-.rarity-opt[data-r="LEGENDARY"]{border-color:var(--r-legendary);color:var(--r-legendary)}
-.rarity-opt[data-r="MYTHIC"]   {border-color:var(--r-mythic);color:var(--r-mythic)}
+if (def) o.style.background = isActive ? `${def.hexColor}18` : '';
+o.style.borderColor = def.hexColor;
+o.style.color = def.hexColor;
 .rarity-opt.active{background:var(--bg2)}
 
 /* PREVIEW MODAL — MC inventory */
