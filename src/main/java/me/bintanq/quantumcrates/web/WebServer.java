@@ -351,6 +351,48 @@ public class WebServer {
                 ctx.json(ok("Given " + amount + "x " + keyId));
             } catch (Exception e) { ctx.status(400).json(err(e.getMessage())); }
         });
+
+        app.post("/api/keys/config/mode", ctx -> {
+            try {
+                com.google.gson.JsonObject body = me.bintanq.quantumcrates.serializer.GsonProvider
+                        .getGson().fromJson(ctx.body(), com.google.gson.JsonObject.class);
+
+                if (!body.has("mode")) {
+                    ctx.status(400).json(err("Body must include 'mode' field (virtual or physical)"));
+                    return;
+                }
+
+                String mode = body.get("mode").getAsString().toLowerCase();
+                if (!mode.equals("virtual") && !mode.equals("physical")) {
+                    ctx.status(400).json(err("Mode must be 'virtual' or 'physical'"));
+                    return;
+                }
+
+                plugin.getConfig().set("keys.mode", mode);
+                plugin.saveConfig();
+
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> plugin.getKeyManager().reload());
+
+                me.bintanq.quantumcrates.util.Logger.info(
+                        "[Web] Key mode changed to: &b" + mode.toUpperCase());
+
+                ctx.json(ok("Key mode saved: " + mode.toUpperCase() +
+                        ". Run /qc reload in-game if needed."));
+
+            } catch (Exception e) {
+                ctx.status(400).json(err("Invalid request: " + e.getMessage()));
+            }
+        });
+
+        app.get("/api/keys/config/mode", ctx -> {
+            String mode = plugin.getConfig().getString("keys.mode", "virtual");
+            ctx.json(java.util.Map.of(
+                    "mode", mode,
+                    "knownIds", plugin.getKeyManager().getKnownKeyIds()
+            ));
+        });
+
     }
 
     private void registerKeyConfigRoute() {
