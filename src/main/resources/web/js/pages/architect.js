@@ -22,68 +22,34 @@ const Architect = {
         </div>
       </div>
 
-      <!-- Crate tabs -->
       <div class="crate-selector-bar" id="crateTabs"></div>
 
-      <div class="architect-grid">
-        <div class="architect-left" id="architectLeft">
-          <div class="card" id="rewardsCard">
-            <div class="card-header">
-              <div class="card-title"><span class="card-accent"></span>REWARDS <span class="card-sub">Loot Table</span></div>
-              <button class="btn btn-ghost btn-sm" id="btnAddReward">+ Add Reward</button>
-            </div>
-            <div class="rewards-grid" id="rewardsGrid"></div>
-            <div class="total-weight-bar"><div class="total-weight-fill" id="totalWeightFill"></div></div>
-            <div class="weight-footer">
-              <span>Total Weight</span>
-              <span class="weight-total" id="totalWeightLabel">0%</span>
-            </div>
-          </div>
+      <div style="display:flex;flex-direction:column;gap:14px" id="architectMain">
 
-          <div class="card" id="sliderCard">
-            <div class="card-header">
-              <div class="card-title"><span class="card-accent"></span>CHANCE MANAGEMENT <span class="card-sub">Weight %</span></div>
-              <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)">
-                Sort:
-                <select class="field-input" style="padding:4px 22px 4px 8px;width:auto;font-size:11px" id="sortOrder">
-                  <option value="RARITY_DESC">Rarity ↓</option>
-                  <option value="RARITY_ASC">Rarity ↑</option>
-                  <option value="WEIGHT_DESC">Weight ↓</option>
-                  <option value="WEIGHT_ASC">Weight ↑</option>
-                  <option value="CONFIG_ORDER">Config Order</option>
-                </select>
-              </div>
+        <!-- Rewards -->
+        <div class="card" id="rewardsCard">
+          <div class="card-header">
+            <div class="card-title"><span class="card-accent"></span>REWARDS <span class="card-sub">Loot Table</span></div>
+            <button class="btn btn-ghost btn-sm" id="btnAddReward">+ Add Reward</button>
+          </div>
+          <div class="rewards-grid" id="rewardsGrid"></div>
+        </div>
+
+        <!-- Chance Management — as a card button -->
+        <div class="card arch-config-card" id="weightCard" onclick="Architect.openWeightModal()" style="cursor:pointer">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:40px;height:40px;border-radius:10px;background:var(--cyan-dim2);border:1px solid rgba(0,74,173,.3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">⚖️</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:700;color:var(--text)">Chance Management</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px" id="weightSummary">Configure reward weights and drop chances</div>
             </div>
-            <div id="sliderGrid"></div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" style="flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
         </div>
 
-        <div class="architect-right" id="architectRight">
-          <!-- Crate Settings -->
-          <div class="card card-sm" id="crateSettingsCard">
-            <div class="card-header" style="margin-bottom:10px">
-              <div class="card-title"><span class="card-accent"></span>CRATE SETTINGS</div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:8px" id="crateSettingsFields"></div>
-          </div>
+        <!-- Configuration cards grid -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px" id="crateConfigCards"></div>
 
-          <!-- Pity System -->
-          <div class="card card-sm" id="pityCard">
-            <div class="card-header" style="margin-bottom:8px">
-              <div class="card-title"><span class="card-accent"></span>PITY SYSTEM</div>
-              <div id="pityToggle"></div>
-            </div>
-            <div id="pityBody"></div>
-          </div>
-
-          <!-- Key Section -->
-          <div class="card card-sm" id="keyCard">
-            <div class="card-header" style="margin-bottom:8px">
-              <div class="card-title"><span class="card-accent"></span>KEY REQUIREMENTS</div>
-            </div>
-            <div id="keyBody"></div>
-          </div>
-        </div>
       </div>
     `;
 
@@ -121,10 +87,8 @@ const Architect = {
     State.currentCrateId = id;
     this.renderCrateTabs();
     this.renderRewards();
-    this.renderSliders();
-    this.renderCrateSettings();
-    this.renderPity();
-    this.renderKeys();
+    this.renderWeightSummary();
+    this.renderConfigCards();
   },
 
   /* ── Rewards ── */
@@ -141,294 +105,250 @@ const Architect = {
       ));
     });
     grid.appendChild(AddCard(() => RewardModal.open(null, r => this.addReward(r))));
-    this._updateWeightBar(tw);
   },
 
-  renderSliders() {
-    const grid  = Utils.qs('#sliderGrid'); if (!grid) return;
-    const crate = State.currentCrate;      if (!crate) return;
+  /* ── Weight summary text ── */
+  renderWeightSummary() {
+    const el    = Utils.qs('#weightSummary'); if (!el) return;
+    const crate = State.currentCrate;         if (!crate) return;
+    const count = crate.rewards?.length || 0;
+    const tw    = Utils.totalWeight(crate.rewards);
+    if (!count) { el.textContent = 'No rewards yet — add one above'; return; }
+    el.textContent = `${count} rewards · Total weight ${tw.toFixed(1)}`;
+  },
+
+  /* ── Config Cards ── */
+  renderConfigCards() {
+    const grid  = Utils.qs('#crateConfigCards'); if (!grid) return;
+    const crate = State.currentCrate;            if (!crate) return;
     grid.innerHTML = '';
-    const sorted = this._sortedRewards(crate.rewards);
-    const tw = Utils.totalWeight(crate.rewards);
-    sorted.forEach(r => grid.appendChild(SliderRow(r, tw, () => {
-      this.dirty = true;
-      this.renderRewards();
-      this.renderSliders();
-    })));
-  },
 
-  _updateWeightBar(tw) {
-    const fill  = Utils.qs('#totalWeightFill');
-    const label = Utils.qs('#totalWeightLabel');
-    if (!fill || !label) return;
-    fill.style.width = Math.min(tw, 100) + '%';
-    label.textContent = tw.toFixed(1) + '%';
-    label.style.color = tw > 100 ? 'var(--red)' : 'var(--cyan)';
-  },
+    const pity    = crate.pity || {};
+    const keyCount = crate.requiredKeys?.length || 0;
 
-  /* ── Crate Settings ── */
-  renderCrateSettings() {
-    const body  = Utils.qs('#crateSettingsFields'); if (!body) return;
-    const crate = State.currentCrate;               if (!crate) return;
+    const cards = [
+      {
+        emoji: '⚙️',
+        label: 'Crate Settings',
+        sub: `${crate.enabled !== false ? 'Enabled' : 'Disabled'} · ${crate.cooldownMs ? Utils.duration(crate.cooldownMs) + ' cooldown' : 'No cooldown'}`,
+        color: 'var(--cyan)',
+        bg: 'var(--cyan-dim2)',
+        border: 'rgba(0,74,173,.3)',
+        onclick: () => CrateSettingsModal.open(crate, () => { this.dirty = true; this.renderCrateTabs(); this.renderConfigCards(); })
+      },
+      {
+        emoji: '🎯',
+        label: 'Pity System',
+        sub: pity.enabled ? `Active · ${pity.threshold || 100} opens hard cap` : 'Disabled',
+        color: pity.enabled ? 'var(--gold)' : 'var(--text3)',
+        bg: pity.enabled ? 'var(--gold-dim)' : 'var(--bg3)',
+        border: pity.enabled ? 'rgba(245,166,35,.3)' : 'var(--border)',
+        onclick: () => PityModal.open(crate, () => { this.dirty = true; this.renderConfigCards(); })
+      },
+      {
+        emoji: '🔑',
+        label: 'Key Requirements',
+        sub: keyCount ? `${keyCount} key type${keyCount > 1 ? 's' : ''} required` : 'No keys configured',
+        color: 'var(--purple)',
+        bg: 'var(--purple-dim)',
+        border: 'rgba(139,92,246,.3)',
+        onclick: () => KeyReqModal.open(crate, () => { this.dirty = true; this.renderConfigCards(); })
+      },
+      {
+        emoji: '📝',
+        label: 'Edit Hologram',
+        sub: (crate.hologramLines?.length || 0) + ' lines configured',
+        color: 'var(--green)',
+        bg: 'var(--green-dim)',
+        border: 'rgba(34,217,138,.3)',
+        onclick: () => HologramModal.open()
+      },
+      {
+        emoji: '🗑️',
+        label: 'Delete Crate',
+        sub: 'Permanently remove this crate',
+        color: 'var(--red)',
+        bg: 'var(--red-dim)',
+        border: 'rgba(255,77,109,.3)',
+        onclick: () => this.confirmDeleteCrate(crate.id)
+      },
+    ];
 
-    body.innerHTML = `
-      <div class="field-row">
-        <div class="field-group">
-          <label class="field-label">Crate ID</label>
-          <input class="field-input" id="cfgId" value="${crate.id || ''}" placeholder="legendary_crate"/>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Display Name</label>
-          <input class="field-input" id="cfgName" value="${crate.displayName || ''}" placeholder="&6&lLegendary Crate"/>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field-group">
-          <label class="field-label">Cooldown</label>
-          <select class="field-input" id="cfgCooldown">
-            <option value="0" ${!crate.cooldownMs?'selected':''}>No Cooldown</option>
-            <option value="300000"   ${crate.cooldownMs===300000?'selected':''}>5 Minutes</option>
-            <option value="1800000"  ${crate.cooldownMs===1800000?'selected':''}>30 Minutes</option>
-            <option value="3600000"  ${crate.cooldownMs===3600000?'selected':''}>1 Hour</option>
-            <option value="86400000" ${crate.cooldownMs===86400000?'selected':''}>24 Hours</option>
-            <option value="custom">Custom...</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Mass Open Limit</label>
-          <input class="field-input" type="number" id="cfgMassLimit" value="${crate.massOpenLimit ?? 64}" min="-1"/>
-        </div>
-      </div>
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-        <div class="section-label" style="margin-bottom:8px">IDLE ANIMATION</div>
-        <div class="field-row">
-          <div class="field-group">
-            <label class="field-label">Type</label>
-            <select class="field-input" id="cfgIdleType">
-              ${['RING','HELIX','SPHERE','SPIRAL','RAIN','NONE'].map(t =>
-                `<option value="${t}" ${(crate.idleAnimation?.type||'RING')===t?'selected':''}>${t}</option>`
-              ).join('')}
-            </select>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Particle</label>
-            <select class="field-input" id="cfgIdleParticle">
-              ${['HAPPY_VILLAGER','FLAME','ENCHANT','SOUL_FIRE_FLAME','DRAGON_BREATH',
-                 'END_ROD','WITCH','GLOW','FIREWORK','TOTEM_OF_UNDYING','SCRAPE'].map(p =>
-                `<option value="${p}" ${(crate.idleAnimation?.particle||'HAPPY_VILLAGER')===p?'selected':''}>${p}</option>`
-              ).join('')}
-            </select>
-          </div>
-        </div>
-        <div class="field-row" style="margin-top:8px">
-          <div class="field-group">
-            <label class="field-label">Speed</label>
-            <input class="field-input" type="number" id="cfgIdleSpeed" value="${crate.idleAnimation?.speed ?? 1.0}" min="0.1" max="5.0" step="0.1"/>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Radius</label>
-            <input class="field-input" type="number" id="cfgIdleRadius" value="${crate.idleAnimation?.radius ?? 1.0}" min="0.2" max="3.0" step="0.1"/>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Density</label>
-            <input class="field-input" type="number" id="cfgIdleDensity" value="${crate.idleAnimation?.density ?? 8}" min="1" max="32"/>
-          </div>
-        </div>
-
-        <div class="section-label" style="margin-top:12px;margin-bottom:8px">OPEN ANIMATION</div>
-        <div class="field-row">
-          <div class="field-group">
-            <label class="field-label">Type</label>
-            <select class="field-input" id="cfgOpenType">
-              ${['RING','HELIX','SPHERE','SPIRAL','RAIN','NONE'].map(t =>
-                `<option value="${t}" ${(crate.openAnimation?.type||'RING')===t?'selected':''}>${t}</option>`
-              ).join('')}
-            </select>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Particle</label>
-            <select class="field-input" id="cfgOpenParticle">
-              ${['FIREWORK','FLAME','ENCHANT','SOUL_FIRE_FLAME','DRAGON_BREATH',
-                 'END_ROD','WITCH','GLOW','HAPPY_VILLAGER','TOTEM_OF_UNDYING'].map(p =>
-                `<option value="${p}" ${(crate.openAnimation?.particle||'FIREWORK')===p?'selected':''}>${p}</option>`
-              ).join('')}
-            </select>
-          </div>
-        </div>
-        <div class="field-row" style="margin-top:8px">
-          <div class="field-group">
-            <label class="field-label">Speed</label>
-            <input class="field-input" type="number" id="cfgOpenSpeed" value="${crate.openAnimation?.speed ?? 1.0}" min="0.1" max="5.0" step="0.1"/>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Radius</label>
-            <input class="field-input" type="number" id="cfgOpenRadius" value="${crate.openAnimation?.radius ?? 1.0}" min="0.2" max="3.0" step="0.1"/>
-          </div>
-        </div>
-      </div>
-      <div id="enabledToggle"></div>
-      <div id="massOpenToggle"></div>
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="HologramModal.open()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-          Edit Hologram
-        </button>
-        <button class="btn btn-danger btn-sm" onclick="Architect.deleteCrate('${crate.id}')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-          Delete Crate
-        </button>
-      </div>
-    `;
-
-    body.querySelector('#enabledToggle').appendChild(
-      ToggleSwitch('Crate Enabled', crate.enabled !== false, v => { crate.enabled = v; this.dirty = true; })
-    );
-    body.querySelector('#massOpenToggle').appendChild(
-      ToggleSwitch('Mass Open Enabled', crate.massOpenEnabled !== false, v => { crate.massOpenEnabled = v; this.dirty = true; })
-    );
-
-    ['cfgId','cfgName','cfgCooldown','cfgMassLimit'].forEach(id => {
-      Utils.qs('#'+id)?.addEventListener('change', () => {
-        crate.id           = Utils.qs('#cfgId').value.trim();
-        crate.displayName  = Utils.qs('#cfgName').value;
-        crate.cooldownMs   = parseInt(Utils.qs('#cfgCooldown').value) || 0;
-        crate.massOpenLimit= parseInt(Utils.qs('#cfgMassLimit').value) || -1;
-        this.dirty = true;
-        this.renderCrateTabs();
-      });
-    });
-    ['cfgIdleType','cfgIdleParticle','cfgIdleSpeed','cfgIdleRadius','cfgIdleDensity',
-     'cfgOpenType','cfgOpenParticle','cfgOpenSpeed','cfgOpenRadius'].forEach(id => {
-      Utils.qs('#'+id)?.addEventListener('change', () => {
-        if (!crate.idleAnimation) crate.idleAnimation = {};
-        if (!crate.openAnimation) crate.openAnimation = {};
-        crate.idleAnimation.type     = Utils.qs('#cfgIdleType').value;
-        crate.idleAnimation.particle = Utils.qs('#cfgIdleParticle').value;
-        crate.idleAnimation.speed    = parseFloat(Utils.qs('#cfgIdleSpeed').value);
-        crate.idleAnimation.radius   = parseFloat(Utils.qs('#cfgIdleRadius').value);
-        crate.idleAnimation.density  = parseInt(Utils.qs('#cfgIdleDensity').value);
-        crate.openAnimation.type     = Utils.qs('#cfgOpenType').value;
-        crate.openAnimation.particle = Utils.qs('#cfgOpenParticle').value;
-        crate.openAnimation.speed    = parseFloat(Utils.qs('#cfgOpenSpeed').value);
-        crate.openAnimation.radius   = parseFloat(Utils.qs('#cfgOpenRadius').value);
-        this.dirty = true;
-      });
+    cards.forEach(({ emoji, label, sub, color, bg, border, onclick }) => {
+      const card = Utils.el('div', 'arch-config-card');
+      card.style.cssText = `cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;transition:all .2s var(--ease)`;
+      card.innerHTML = `
+        <div style="width:38px;height:38px;border-radius:10px;background:${bg};border:1px solid ${border};display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px">${emoji}</div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:4px">${label}</div>
+        <div style="font-size:10.5px;color:${color};line-height:1.4">${sub}</div>
+      `;
+      card.onmouseenter = () => { card.style.borderColor = border; card.style.transform = 'translateY(-2px)'; card.style.boxShadow = '0 4px 20px rgba(0,0,0,.4)'; };
+      card.onmouseleave = () => { card.style.borderColor = 'var(--border)'; card.style.transform = ''; card.style.boxShadow = ''; };
+      card.onclick = onclick;
+      grid.appendChild(card);
     });
   },
 
-  /* ── Pity ── */
-  renderPity() {
-    const body  = Utils.qs('#pityBody');   if (!body) return;
-    const tog   = Utils.qs('#pityToggle'); if (!tog) return;
-    const crate = State.currentCrate;      if (!crate) return;
-    const pity  = crate.pity || {};
+  /* ── Weight Modal ── */
+  openWeightModal() {
+    const crate = State.currentCrate; if (!crate) return;
+    if (!crate.rewards?.length) { toast('No rewards to configure — add rewards first', 'info'); return; }
 
-    tog.innerHTML = '';
-    tog.appendChild(ToggleSwitch('', pity.enabled, v => {
-      pity.enabled = v; this.dirty = true; this.renderPity();
-    }));
+    const renderRows = () => {
+      const list  = Utils.qs('#wmList'); if (!list) return;
+      const sorted = this._sortedRewards(crate.rewards);
+      const tw = Utils.totalWeight(crate.rewards);
+      list.innerHTML = '';
 
-    if (!pity.enabled) {
-      body.innerHTML = '<div style="font-size:11px;color:var(--text3);padding:4px 0">Pity system is disabled for this crate.</div>';
-      return;
-    }
+      // Header
+      const hdr = Utils.el('div');
+      hdr.style.cssText = 'display:grid;grid-template-columns:1fr 120px 80px 80px;gap:8px;padding:6px 4px;font-size:9.5px;font-weight:700;color:var(--text3);letter-spacing:.7px;text-transform:uppercase;border-bottom:1px solid var(--border);margin-bottom:6px';
+      hdr.innerHTML = '<span>Reward</span><span>Weight</span><span>Chance</span><span>Rarity</span>';
+      list.appendChild(hdr);
 
-    // Rarity options untuk pity — dynamic dari State.rarities
-    // Hanya tampilkan rarity dari urutan ke-2 ke atas (index >= 1) — pity biasanya bukan untuk common
-    const pityRarityOptions = State.rarities
-      .filter((_, i) => i >= 1)
-      .map(r => `<option value="${r.id}" ${pity.rareRarityMinimum===r.id?'selected':''}>
-        ${r.icon} ${r.displayName}
-      </option>`)
-      .join('');
+      sorted.forEach(r => {
+        const pct   = Utils.chance(r.weight, tw);
+        const color = Utils.rarityColor(r.rarity);
+        const row   = Utils.el('div');
+        row.style.cssText = 'display:grid;grid-template-columns:1fr 120px 80px 80px;gap:8px;align-items:center;padding:7px 4px;border-radius:6px;transition:background .15s';
+        row.onmouseenter = () => row.style.background = 'var(--surface)';
+        row.onmouseleave = () => row.style.background = '';
 
-    body.innerHTML = `
-      ${PityBar(0, pity.threshold || 100, pity.softPityStart || 80).outerHTML}
-      <div class="field-row" style="margin-top:10px">
-        <div class="field-group">
-          <label class="field-label">Hard Pity Threshold</label>
-          <input class="field-input" type="number" id="pityMax" value="${pity.threshold || 100}" min="1" max="1000"/>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Soft Pity Start</label>
-          <input class="field-input" type="number" id="pitySoft" value="${pity.softPityStart || 80}" min="1"/>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field-group">
-          <label class="field-label">Minimum Rarity for Pity</label>
-          <select class="field-input" id="pityRarity">
-            ${pityRarityOptions}
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Bonus Chance/Open (%)</label>
-          <input class="field-input" type="number" id="pityBonus" value="${pity.bonusChancePerOpen || 2}" min="0.1" step="0.1"/>
-        </div>
-      </div>
-    `;
+        const nameEl = Utils.el('div');
+        nameEl.style.cssText = 'display:flex;align-items:center;gap:7px;font-size:12px;font-weight:500;overflow:hidden';
+        nameEl.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${Utils.strip(r.displayName) || r.id}</span>`;
 
-    ['pityMax','pitySoft','pityRarity','pityBonus'].forEach(id => {
-      Utils.qs('#'+id)?.addEventListener('change', () => {
-        pity.threshold          = parseInt(Utils.qs('#pityMax').value);
-        pity.softPityStart      = parseInt(Utils.qs('#pitySoft').value);
-        pity.rareRarityMinimum  = Utils.qs('#pityRarity').value;
-        pity.bonusChancePerOpen = parseFloat(Utils.qs('#pityBonus').value);
-        this.dirty = true;
-      });
-    });
-  },
+        const wtWrap = Utils.el('div');
+        wtWrap.style.cssText = 'display:flex;align-items:center;gap:4px';
+        const minus = Utils.el('button', 'wt-btn'); minus.textContent = '−';
+        const inp   = document.createElement('input');
+        inp.type = 'number'; inp.className = 'field-input'; inp.value = r.weight.toFixed(1);
+        inp.style.cssText = 'width:54px;padding:4px 6px;font-size:12px;font-weight:600;text-align:center';
+        const plus  = Utils.el('button', 'wt-btn'); plus.textContent = '+';
 
-  /* ── Keys ── */
-  renderKeys() {
-    const body  = Utils.qs('#keyBody'); if (!body) return;
-    const crate = State.currentCrate;  if (!crate) return;
-    if (!crate.requiredKeys) crate.requiredKeys = [];
+        const chanceEl = Utils.el('div');
+        chanceEl.style.cssText = 'font-size:12px;font-weight:700;color:var(--cyan)';
+        chanceEl.textContent = Utils.fmtChance(pct);
 
-    const renderList = () => {
-      body.innerHTML = '';
-      crate.requiredKeys.forEach((k, i) => {
-        const row = Utils.el('div', 'field-row', `
-          <div class="field-group">
-            <label class="field-label">Key ID</label>
-            <input class="field-input" value="${k.keyId}" placeholder="legendary_key" data-field="keyId" data-idx="${i}"/>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Amount</label>
-            <input class="field-input" type="number" value="${k.amount || 1}" min="1" data-field="amount" data-idx="${i}"/>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Source</label>
-            <select class="field-input" data-field="type" data-idx="${i}">
-              ${['VIRTUAL','PHYSICAL','MMOITEMS','ITEMSADDER','ORAXEN'].map(t =>
-                `<option value="${t}" ${k.type===t?'selected':''}>${t}</option>`).join('')}
-            </select>
-          </div>
-          <button class="btn btn-danger btn-xs" style="align-self:flex-end;margin-bottom:0" data-remove="${i}">✕</button>
-        `);
-        row.querySelectorAll('[data-field]').forEach(el => {
-          el.onchange = () => {
-            const idx   = parseInt(el.dataset.idx);
-            const field = el.dataset.field;
-            crate.requiredKeys[idx][field] = field === 'amount' ? parseInt(el.value) : el.value;
-            this.dirty = true;
-          };
-        });
-        row.querySelector('[data-remove]').onclick = () => {
-          crate.requiredKeys.splice(i, 1); this.dirty = true; renderList();
+        const applyW = (val) => {
+          r.weight = parseFloat(Math.max(0.1, Math.min(9999, val)).toFixed(1));
+          inp.value = r.weight.toFixed(1);
+          this.dirty = true;
+          const newTw = Utils.totalWeight(crate.rewards);
+          chanceEl.textContent = Utils.fmtChance(Utils.chance(r.weight, newTw));
+          this.renderWeightSummary();
         };
-        body.appendChild(row);
+        minus.onclick = () => applyW(r.weight - 0.5);
+        plus.onclick  = () => applyW(r.weight + 0.5);
+        inp.onchange  = () => applyW(parseFloat(inp.value) || 0.1);
+
+        wtWrap.appendChild(minus); wtWrap.appendChild(inp); wtWrap.appendChild(plus);
+
+        const rarityEl = Utils.el('div');
+        rarityEl.style.cssText = `font-size:10px;font-weight:700;color:${color}`;
+        rarityEl.textContent = r.rarity;
+
+        row.appendChild(nameEl); row.appendChild(wtWrap); row.appendChild(chanceEl); row.appendChild(rarityEl);
+        list.appendChild(row);
       });
 
-      const addBtn = Utils.el('button', 'btn btn-ghost btn-sm', '+ Add Key Requirement');
-      addBtn.style.marginTop = '6px';
-      addBtn.onclick = () => {
-        crate.requiredKeys.push({ keyId: '', amount: 1, type: 'VIRTUAL' });
-        this.dirty = true; renderList();
-      };
-      body.appendChild(addBtn);
+      const tw2 = Utils.totalWeight(crate.rewards);
+      const totRow = Utils.el('div');
+      totRow.style.cssText = 'display:flex;justify-content:space-between;padding:8px 4px 0;border-top:1px solid var(--border);margin-top:4px;font-size:11px';
+      totRow.innerHTML = `<span style="color:var(--text3)">Total Weight</span><span style="font-weight:700;color:var(--cyan)">${tw2.toFixed(1)}</span>`;
+      list.appendChild(totRow);
     };
-    renderList();
+
+    Modal.open(`
+      <div class="modal-head">
+        <div class="modal-head-left">
+          <div class="modal-title">⚖️ Chance Management</div>
+          <div class="modal-subtitle">Adjust reward weights — higher weight = more common</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select class="field-input" id="wmSort" style="padding:5px 22px 5px 8px;font-size:11px;width:auto" onchange="Architect._wmSort()">
+            <option value="RARITY_DESC">Rarity ↓</option>
+            <option value="RARITY_ASC">Rarity ↑</option>
+            <option value="WEIGHT_DESC">Weight ↓</option>
+            <option value="WEIGHT_ASC">Weight ↑</option>
+          </select>
+          <button class="modal-close" onclick="Modal.close()">✕</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="wmList"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="Modal.close()">Close</button>
+      </div>
+    `, 'modal-lg');
+
+    renderRows();
+    this._wmRenderFn = renderRows;
+  },
+
+  _wmSort() {
+    const sel = Utils.qs('#wmSort');
+    if (sel) {
+      // update current sort pref
+      const crate = State.currentCrate;
+      if (crate?.preview) crate.preview.sortOrder = sel.value;
+    }
+    this._wmRenderFn?.();
+  },
+
+  /* ── Delete confirm modal ── */
+  confirmDeleteCrate(id) {
+    Modal.open(`
+      <div class="modal-head">
+        <div class="modal-head-left">
+          <div class="modal-title" style="color:var(--red)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            Delete Crate
+          </div>
+          <div class="modal-subtitle">This action cannot be undone.</div>
+        </div>
+        <button class="modal-close" onclick="Modal.close()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="padding:16px;background:var(--red-dim);border:1px solid rgba(255,77,109,.2);border-radius:var(--radius-sm);font-size:13px;line-height:1.7">
+          <div style="font-weight:700;color:var(--red);margin-bottom:6px">⚠ Delete this crate?</div>
+          <div style="color:var(--text2)">Crate <code style="color:var(--cyan);background:var(--bg3);padding:1px 6px;border-radius:4px">${id}</code> will be permanently removed from the server. All rewards, pity data, and configuration will be lost.</div>
+        </div>
+        <div style="margin-top:14px">
+          <label class="field-label" style="margin-bottom:6px;display:block">Type the crate ID to confirm:</label>
+          <input class="field-input" id="deleteConfirmInput" placeholder="${id}"/>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="Modal.close()">Cancel</button>
+        <button class="btn btn-danger" id="btnConfirmDelete" disabled onclick="Architect._doDelete('${id}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          Delete Permanently
+        </button>
+      </div>
+    `, 'modal-md');
+
+    Utils.qs('#deleteConfirmInput').oninput = function() {
+      Utils.qs('#btnConfirmDelete').disabled = this.value !== id;
+    };
+  },
+
+  async _doDelete(id) {
+    try {
+      await API.deleteCrate(id);
+      State.deleteCrate(id);
+      Modal.close();
+      toast(`Crate "${id}" deleted.`, 'success');
+      if (State.crateOrder.length > 0) {
+        this.loadCrate(State.crateOrder[0]);
+      } else {
+        State.currentCrateId = null;
+        this.renderCrateTabs();
+        const main = Utils.qs('#architectMain');
+        if (main) main.innerHTML = '<div class="empty-state" style="padding:60px"><p>No crates yet. Create one to get started.</p></div>';
+      }
+    } catch (e) { toast(e.message, 'error'); }
   },
 
   /* ── Reward CRUD ── */
@@ -438,7 +358,7 @@ const Architect = {
     crate.rewards.push(reward);
     this.dirty = true;
     this.renderRewards();
-    this.renderSliders();
+    this.renderWeightSummary();
   },
 
   updateReward(id, updated) {
@@ -447,7 +367,7 @@ const Architect = {
     if (idx !== -1) crate.rewards[idx] = updated;
     this.dirty = true;
     this.renderRewards();
-    this.renderSliders();
+    this.renderWeightSummary();
   },
 
   removeReward(id) {
@@ -455,7 +375,7 @@ const Architect = {
     crate.rewards = crate.rewards.filter(r => r.id !== id);
     this.dirty = true;
     this.renderRewards();
-    this.renderSliders();
+    this.renderWeightSummary();
     toast('Reward removed', 'info');
   },
 
@@ -469,7 +389,7 @@ const Architect = {
       await API.saveCrate(crate.id, crate);
       State.setCrate(crate);
       this.dirty = false;
-      toast('Crate saved & synced to server ✓', 'success');
+      toast('Crate saved ✓', 'success');
     } catch (e) {
       toast(e.message, 'error');
     } finally {
@@ -479,37 +399,36 @@ const Architect = {
   },
 
   discard() {
-    if (!this.dirty || confirm('Discard all unsaved changes?')) {
-      this.dirty = false;
-      this.loadCrate(State.currentCrateId);
-      toast('Changes discarded', 'info');
-    }
+    if (!this.dirty) { toast('Nothing to discard', 'info'); return; }
+    Modal.open(`
+      <div class="modal-head">
+        <div class="modal-head-left">
+          <div class="modal-title">Discard Changes?</div>
+          <div class="modal-subtitle">All unsaved changes will be lost.</div>
+        </div>
+        <button class="modal-close" onclick="Modal.close()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="padding:14px;background:var(--gold-dim);border:1px solid rgba(245,166,35,.2);border-radius:var(--radius-sm);font-size:13px;color:var(--text2)">
+          Are you sure you want to discard all unsaved changes?
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="Modal.close()">Cancel</button>
+        <button class="btn btn-primary" onclick="Architect._doDiscard()">↩ Discard</button>
+      </div>
+    `, 'modal-sm');
   },
 
-  async deleteCrate(id) {
-    if (!confirm(`Hapus crate "${id}" permanen? Tindakan ini tidak bisa dibatalkan.`)) return;
-    try {
-      await API.deleteCrate(id);
-      State.deleteCrate(id);
-      toast(`Crate "${id}" berhasil dihapus.`, 'success');
-      if (State.crateOrder.length > 0) {
-        this.loadCrate(State.crateOrder[0]);
-      } else {
-        State.currentCrateId = null;
-        this.renderCrateTabs();
-        Utils.qs('#architectLeft').innerHTML  = '<div class="empty-state"><p>No crates yet. Create one!</p></div>';
-        Utils.qs('#architectRight').innerHTML = '';
-      }
-      this.renderCrateTabs();
-    } catch (e) {
-      toast(e.message, 'error');
-    }
+  _doDiscard() {
+    Modal.close();
+    this.dirty = false;
+    this.loadCrate(State.currentCrateId);
+    toast('Changes discarded', 'info');
   },
 
   newCrate() {
     const id    = 'new_crate_' + Date.now();
-    const lowestId = State.rarities[0]?.id || 'COMMON';
-    const highestId = State.rarities[State.rarities.length - 1]?.id || 'MYTHIC';
     const midId = State.rarities[Math.floor(State.rarities.length / 2)]?.id || 'RARE';
     const crate = {
       id, displayName: '&fNew Crate', enabled: true,
@@ -524,13 +443,12 @@ const Architect = {
     this.dirty = true;
     this.renderCrateTabs();
     this.loadCrate(id);
-    toast('New crate created — fill in the details and save!', 'info');
+    toast('New crate created — configure and save!', 'info');
   },
 
-  /* ── Sort helper ── */
   _sortedRewards(rewards) {
     if (!rewards) return [];
-    const order = Utils.qs('#sortOrder')?.value || State.currentCrate?.preview?.sortOrder || 'RARITY_DESC';
+    const order = Utils.qs('#wmSort')?.value || State.currentCrate?.preview?.sortOrder || 'RARITY_DESC';
     const arr = [...rewards];
     switch (order) {
       case 'RARITY_DESC':  return arr.sort((a,b) => Utils.rarityOrder(b.rarity) - Utils.rarityOrder(a.rarity) || b.weight - a.weight);
@@ -550,200 +468,344 @@ const Architect = {
   },
 };
 
-/* ══ RARITY EDITOR MODAL ══
-   Dibuka dari tombol "Rarities" di header Architect.
-   Fitur: edit hex color, display name, icon, order, add/remove custom rarity.
-   Save → POST /api/rarities → server reload rarities.yml → WS broadcast.
-*/
-const RarityEditor = {
-  // Working copy — jangan mutasi State.rarities langsung
-  draft: [],
-
-  open() {
-    // Deep clone dari State.rarities sebagai draft
-    this.draft = State.rarities.map(r => ({ ...r }));
-    this._render();
-  },
-
-  _render() {
-    const rows = this.draft.map((r, i) => this._rowHtml(r, i)).join('');
-
+/* ══════════════════════════════════════════════════════
+   CRATE SETTINGS MODAL
+══════════════════════════════════════════════════════ */
+const CrateSettingsModal = {
+  open(crate, onSave) {
     Modal.open(`
       <div class="modal-head">
         <div class="modal-head-left">
           <div class="modal-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-            Rarity Editor
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            Crate Settings
           </div>
-          <div class="modal-subtitle">Add, remove, or recolor rarity tiers. Changes saved to rarities.yml instantly.</div>
+          <div class="modal-subtitle">${Utils.strip(crate.displayName || crate.id)}</div>
         </div>
         <button class="modal-close" onclick="Modal.close()">✕</button>
       </div>
-
-      <div class="modal-body" style="padding-bottom:8px">
-        <!-- Header row -->
-        <div style="display:grid;grid-template-columns:28px 1fr 110px 80px 60px 36px;gap:6px;align-items:center;
-          padding:0 4px 6px;border-bottom:1px solid var(--border);margin-bottom:8px;
-          font-size:9.5px;font-weight:700;color:var(--text3);letter-spacing:.7px;text-transform:uppercase">
-          <span></span>
-          <span>Display Name</span>
-          <span>Hex Color</span>
-          <span>Order</span>
-          <span>Icon</span>
-          <span></span>
-        </div>
-
-        <!-- Rarity rows -->
-        <div id="rarityRows" style="display:flex;flex-direction:column;gap:6px">
-          ${rows}
-        </div>
-
-        <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%;justify-content:center"
-          onclick="RarityEditor.addRow()">
-          + Add Custom Rarity
-        </button>
-
-        <div style="margin-top:12px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);
-          border-radius:var(--radius-sm);font-size:11px;color:var(--text3);line-height:1.7">
-          <strong style="color:var(--text2)">Tips:</strong> ID dibuat otomatis dari Display Name (uppercase, spasi → _).
-          Order menentukan urutan tier — angka lebih tinggi = lebih langka.
-          Perubahan langsung sync ke server dan semua client yang konek.
+      <div class="modal-body">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label">Crate ID</label>
+              <input class="field-input" id="csId" value="${crate.id || ''}" placeholder="legendary_crate"/>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Display Name</label>
+              <input class="field-input" id="csName" value="${crate.displayName || ''}" placeholder="&6&lLegendary Crate"/>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label">Cooldown</label>
+              <select class="field-input" id="csCooldown">
+                <option value="0" ${!crate.cooldownMs?'selected':''}>No Cooldown</option>
+                <option value="300000"   ${crate.cooldownMs===300000?'selected':''}>5 Minutes</option>
+                <option value="1800000"  ${crate.cooldownMs===1800000?'selected':''}>30 Minutes</option>
+                <option value="3600000"  ${crate.cooldownMs===3600000?'selected':''}>1 Hour</option>
+                <option value="86400000" ${crate.cooldownMs===86400000?'selected':''}>24 Hours</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Mass Open Limit</label>
+              <input class="field-input" type="number" id="csMassLimit" value="${crate.massOpenLimit ?? 64}" min="-1"/>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px">
+            <div style="flex:1" id="csEnabledToggle"></div>
+            <div style="flex:1" id="csMassToggle"></div>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:12px">
+            <div class="section-label" style="margin-bottom:8px">IDLE ANIMATION</div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">Type</label>
+                <select class="field-input" id="csIdleType">
+                  ${['RING','HELIX','SPHERE','SPIRAL','RAIN','NONE'].map(t => `<option value="${t}" ${(crate.idleAnimation?.type||'RING')===t?'selected':''}>${t}</option>`).join('')}
+                </select>
+              </div>
+              <div class="field-group">
+                <label class="field-label">Particle</label>
+                <select class="field-input" id="csIdleParticle">
+                  ${['HAPPY_VILLAGER','FLAME','ENCHANT','SOUL_FIRE_FLAME','DRAGON_BREATH','END_ROD','WITCH','GLOW','FIREWORK','TOTEM_OF_UNDYING','SCRAPE'].map(p => `<option value="${p}" ${(crate.idleAnimation?.particle||'HAPPY_VILLAGER')===p?'selected':''}>${p}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="section-label" style="margin-bottom:8px">OPEN ANIMATION</div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">Type</label>
+                <select class="field-input" id="csOpenType">
+                  ${['RING','HELIX','SPHERE','SPIRAL','RAIN','NONE'].map(t => `<option value="${t}" ${(crate.openAnimation?.type||'RING')===t?'selected':''}>${t}</option>`).join('')}
+                </select>
+              </div>
+              <div class="field-group">
+                <label class="field-label">Particle</label>
+                <select class="field-input" id="csOpenParticle">
+                  ${['FIREWORK','FLAME','ENCHANT','SOUL_FIRE_FLAME','DRAGON_BREATH','END_ROD','WITCH','GLOW','HAPPY_VILLAGER','TOTEM_OF_UNDYING'].map(p => `<option value="${p}" ${(crate.openAnimation?.particle||'FIREWORK')===p?'selected':''}>${p}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
       <div class="modal-foot">
         <button class="btn btn-ghost" onclick="Modal.close()">Cancel</button>
-        <button class="btn btn-ghost btn-sm" onclick="RarityEditor.reload()">↻ Reload from File</button>
-        <button class="btn btn-primary" onclick="RarityEditor.save()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-            <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
-          </svg>
-          Save Rarities
-        </button>
+        <button class="btn btn-primary" onclick="CrateSettingsModal.save()">✓ Save Settings</button>
       </div>
     `, 'modal-lg');
 
-    this._bindRows();
+    Utils.qs('#csEnabledToggle').appendChild(ToggleSwitch('Crate Enabled', crate.enabled !== false, v => { crate.enabled = v; }));
+    Utils.qs('#csMassToggle').appendChild(ToggleSwitch('Mass Open Enabled', crate.massOpenEnabled !== false, v => { crate.massOpenEnabled = v; }));
+    this._crate = crate; this._onSave = onSave;
+  },
+
+  save() {
+    const c = this._crate;
+    c.id            = Utils.qs('#csId').value.trim();
+    c.displayName   = Utils.qs('#csName').value;
+    c.cooldownMs    = parseInt(Utils.qs('#csCooldown').value) || 0;
+    c.massOpenLimit = parseInt(Utils.qs('#csMassLimit').value) || -1;
+    if (!c.idleAnimation) c.idleAnimation = {};
+    if (!c.openAnimation) c.openAnimation = {};
+    c.idleAnimation.type     = Utils.qs('#csIdleType').value;
+    c.idleAnimation.particle = Utils.qs('#csIdleParticle').value;
+    c.openAnimation.type     = Utils.qs('#csOpenType').value;
+    c.openAnimation.particle = Utils.qs('#csOpenParticle').value;
+    this._onSave?.();
+    Modal.close();
+    toast('Crate settings saved ✓', 'success');
+  },
+};
+
+/* ══════════════════════════════════════════════════════
+   PITY SYSTEM MODAL
+══════════════════════════════════════════════════════ */
+const PityModal = {
+  open(crate, onSave) {
+    if (!crate.pity) crate.pity = { enabled: false, threshold: 100, softPityStart: 80, rareRarityMinimum: 'RARE', bonusChancePerOpen: 2 };
+    const pity = crate.pity;
+
+    const pityRarityOptions = State.rarities.filter((_, i) => i >= 1)
+      .map(r => `<option value="${r.id}" ${pity.rareRarityMinimum===r.id?'selected':''}>${r.icon} ${r.displayName}</option>`).join('');
+
+    Modal.open(`
+      <div class="modal-head">
+        <div class="modal-head-left">
+          <div class="modal-title">🎯 Pity System</div>
+          <div class="modal-subtitle">${Utils.strip(crate.displayName || crate.id)}</div>
+        </div>
+        <button class="modal-close" onclick="Modal.close()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="pityEnabledToggle" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)"></div>
+        <div id="pityFields" style="${pity.enabled ? '' : 'opacity:.4;pointer-events:none'}">
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label">Hard Pity Threshold</label>
+              <input class="field-input" type="number" id="pmMax" value="${pity.threshold || 100}" min="1" max="1000"/>
+              <div style="font-size:10.5px;color:var(--text3);margin-top:3px">Guaranteed rare after N opens.</div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Soft Pity Start</label>
+              <input class="field-input" type="number" id="pmSoft" value="${pity.softPityStart || 80}" min="1"/>
+              <div style="font-size:10.5px;color:var(--text3);margin-top:3px">Bonus chance starts increasing here.</div>
+            </div>
+          </div>
+          <div class="field-row" style="margin-top:10px">
+            <div class="field-group">
+              <label class="field-label">Minimum Rarity (Pity)</label>
+              <select class="field-input" id="pmRarity">${pityRarityOptions}</select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Bonus Chance / Open (%)</label>
+              <input class="field-input" type="number" id="pmBonus" value="${pity.bonusChancePerOpen || 2}" min="0.1" step="0.1"/>
+            </div>
+          </div>
+          <div style="margin-top:14px;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm)">
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px">
+              <span style="color:var(--text2)">Pity Bar Preview</span>
+              <span style="color:var(--cyan);font-weight:700">0 / ${pity.threshold || 100}</span>
+            </div>
+            <div style="height:8px;background:var(--bg2);border-radius:4px;overflow:hidden;position:relative">
+              <div style="width:0%;height:100%;background:linear-gradient(90deg,var(--cyan),var(--gold));border-radius:4px"></div>
+              <div style="position:absolute;top:0;bottom:0;left:${(pity.softPityStart||80)/(pity.threshold||100)*100}%;width:2px;background:rgba(255,255,255,.3)"></div>
+            </div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px">Soft pity starts at ${pity.softPityStart || 80} opens</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="Modal.close()">Cancel</button>
+        <button class="btn btn-primary" onclick="PityModal.save()">✓ Save Pity Config</button>
+      </div>
+    `, 'modal-md');
+
+    const fields = Utils.qs('#pityFields');
+    Utils.qs('#pityEnabledToggle').appendChild(ToggleSwitch('Enable Pity System', pity.enabled, v => {
+      pity.enabled = v;
+      fields.style.opacity = v ? '1' : '.4';
+      fields.style.pointerEvents = v ? '' : 'none';
+    }));
+    this._crate = crate; this._onSave = onSave;
+  },
+
+  save() {
+    const pity = this._crate.pity;
+    pity.threshold          = parseInt(Utils.qs('#pmMax').value) || 100;
+    pity.softPityStart      = parseInt(Utils.qs('#pmSoft').value) || 80;
+    pity.rareRarityMinimum  = Utils.qs('#pmRarity').value;
+    pity.bonusChancePerOpen = parseFloat(Utils.qs('#pmBonus').value) || 2;
+    this._onSave?.();
+    Modal.close();
+    toast('Pity system updated ✓', 'success');
+  },
+};
+
+/* ══════════════════════════════════════════════════════
+   KEY REQUIREMENTS MODAL
+══════════════════════════════════════════════════════ */
+const KeyReqModal = {
+  open(crate, onSave) {
+    if (!crate.requiredKeys) crate.requiredKeys = [];
+    this._crate = crate; this._onSave = onSave;
+
+    Modal.open(`
+      <div class="modal-head">
+        <div class="modal-head-left">
+          <div class="modal-title">🔑 Key Requirements</div>
+          <div class="modal-subtitle">${Utils.strip(crate.displayName || crate.id)}</div>
+        </div>
+        <button class="modal-close" onclick="Modal.close()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="keyReqList" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%;justify-content:center" onclick="KeyReqModal.addKey()">
+          + Add Key Requirement
+        </button>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="Modal.close()">Cancel</button>
+        <button class="btn btn-primary" onclick="KeyReqModal.save()">✓ Save Keys</button>
+      </div>
+    `, 'modal-md');
+
+    this.renderList();
+  },
+
+  renderList() {
+    const list = Utils.qs('#keyReqList'); if (!list) return;
+    const crate = this._crate;
+    list.innerHTML = '';
+    if (!crate.requiredKeys.length) {
+      list.innerHTML = '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px 0">No key requirements. Click below to add one.</div>';
+      return;
+    }
+    crate.requiredKeys.forEach((k, i) => {
+      const row = Utils.el('div');
+      row.style.cssText = 'display:flex;gap:8px;align-items:flex-end;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm)';
+      row.innerHTML = `
+        <div class="field-group" style="flex:2">
+          <label class="field-label">Key ID</label>
+          <input class="field-input" value="${k.keyId}" placeholder="legendary_key" data-idx="${i}" data-field="keyId"/>
+        </div>
+        <div class="field-group" style="flex:0 0 70px">
+          <label class="field-label">Amount</label>
+          <input class="field-input" type="number" value="${k.amount || 1}" min="1" data-idx="${i}" data-field="amount"/>
+        </div>
+        <div class="field-group" style="flex:1.5">
+          <label class="field-label">Source</label>
+          <select class="field-input" data-idx="${i}" data-field="type">
+            ${['VIRTUAL','PHYSICAL','MMOITEMS','ITEMSADDER','ORAXEN'].map(t => `<option value="${t}" ${k.type===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <button class="btn btn-danger btn-xs" style="flex-shrink:0;margin-bottom:1px" data-remove="${i}">✕</button>
+      `;
+      row.querySelectorAll('[data-field]').forEach(el => {
+        el.onchange = () => { crate.requiredKeys[parseInt(el.dataset.idx)][el.dataset.field] = el.dataset.field === 'amount' ? parseInt(el.value) : el.value; };
+      });
+      row.querySelector('[data-remove]').onclick = () => { crate.requiredKeys.splice(i, 1); this.renderList(); };
+      list.appendChild(row);
+    });
+  },
+
+  addKey() { this._crate.requiredKeys.push({ keyId: '', amount: 1, type: 'VIRTUAL' }); this.renderList(); },
+  save()   { this._onSave?.(); Modal.close(); toast('Key requirements updated ✓', 'success'); },
+};
+
+/* ══ RARITY EDITOR MODAL ══ */
+const RarityEditor = {
+  draft: [],
+  open() { this.draft = State.rarities.map(r => ({ ...r })); this._render(); },
+
+  _render() {
+    Modal.open(`
+      <div class="modal-head">
+        <div class="modal-head-left">
+          <div class="modal-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Rarity Editor</div>
+          <div class="modal-subtitle">Add, remove, or recolor rarity tiers. Changes sync to rarities.yml instantly.</div>
+        </div>
+        <button class="modal-close" onclick="Modal.close()">✕</button>
+      </div>
+      <div class="modal-body" style="padding-bottom:8px">
+        <div style="display:grid;grid-template-columns:28px 1fr 110px 80px 60px 36px;gap:6px;align-items:center;padding:0 4px 6px;border-bottom:1px solid var(--border);margin-bottom:8px;font-size:9.5px;font-weight:700;color:var(--text3);letter-spacing:.7px;text-transform:uppercase">
+          <span></span><span>Display Name</span><span>Hex Color</span><span>Order</span><span>Icon</span><span></span>
+        </div>
+        <div id="rarityRows" style="display:flex;flex-direction:column;gap:6px">${this.draft.map((r, i) => this._rowHtml(r, i)).join('')}</div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%;justify-content:center" onclick="RarityEditor.addRow()">+ Add Custom Rarity</button>
+        <div style="margin-top:12px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11px;color:var(--text3);line-height:1.7">
+          <strong style="color:var(--text2)">Tips:</strong> ID is auto-generated from Display Name. Order determines tier level — higher = rarer.
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="Modal.close()">Cancel</button>
+        <button class="btn btn-ghost btn-sm" onclick="RarityEditor.reload()">↻ Reload from File</button>
+        <button class="btn btn-primary" onclick="RarityEditor.save()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Rarities</button>
+      </div>
+    `, 'modal-lg');
   },
 
   _rowHtml(r, i) {
-    const isBuiltin = i < 6; // 6 rarity default — bisa dihapus tapi kasih warning visual
-    return `
-      <div class="rarity-editor-row" data-idx="${i}"
-        style="display:grid;grid-template-columns:28px 1fr 110px 80px 60px 36px;gap:6px;align-items:center;
-          padding:6px 4px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg3)">
-
-        <!-- Color swatch -->
-        <div style="width:24px;height:24px;border-radius:6px;background:${r.hexColor};
-          border:2px solid ${r.hexColor}40;flex-shrink:0;cursor:pointer"
-          onclick="document.getElementById('rClrPick${i}').click()"
-          title="Click to change color">
-          <input type="color" id="rClrPick${i}" value="${r.hexColor}"
-            style="opacity:0;width:0;height:0;position:absolute"
-            oninput="RarityEditor.update(${i},'hexColor',this.value);
-                     this.parentNode.style.background=this.value;
-                     this.parentNode.style.borderColor=this.value+'40'"/>
-        </div>
-
-        <!-- Display Name -->
-        <input class="field-input" style="padding:5px 8px;font-size:12px"
-          value="${r.displayName}"
-          placeholder="e.g. Legendary"
-          oninput="RarityEditor.update(${i},'displayName',this.value)"/>
-
-        <!-- Hex color text -->
-        <input class="field-input" style="padding:5px 8px;font-size:11px;font-family:monospace"
-          value="${r.hexColor}"
-          placeholder="#aaaaaa"
-          oninput="RarityEditor.update(${i},'hexColor',this.value);
-                   const sw=this.closest('.rarity-editor-row').querySelector('div[style*=background]');
-                   if(sw&&/^#[0-9a-f]{6}$/i.test(this.value)){sw.style.background=this.value;sw.style.borderColor=this.value+'40'}"/>
-
-        <!-- Order -->
-        <input class="field-input" type="number" style="padding:5px 8px;font-size:12px"
-          value="${r.order}" min="0" max="99"
-          oninput="RarityEditor.update(${i},'order',parseInt(this.value)||0)"/>
-
-        <!-- Icon/Emoji -->
-        <input class="field-input" style="padding:5px 8px;font-size:16px;text-align:center"
-          value="${r.icon || '⬜'}"
-          maxlength="4"
-          oninput="RarityEditor.update(${i},'icon',this.value)"/>
-
-        <!-- Remove -->
-        <button class="btn btn-danger btn-xs" style="padding:5px 7px"
-          onclick="RarityEditor.removeRow(${i})" title="Remove rarity">✕</button>
+    return `<div class="rarity-editor-row" data-idx="${i}" style="display:grid;grid-template-columns:28px 1fr 110px 80px 60px 36px;gap:6px;align-items:center;padding:6px 4px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg3)">
+      <div style="width:24px;height:24px;border-radius:6px;background:${r.hexColor};border:2px solid ${r.hexColor}40;flex-shrink:0;cursor:pointer" onclick="document.getElementById('rClrPick${i}').click()">
+        <input type="color" id="rClrPick${i}" value="${r.hexColor}" style="opacity:0;width:0;height:0;position:absolute" oninput="RarityEditor.update(${i},'hexColor',this.value);this.parentNode.style.background=this.value;this.parentNode.style.borderColor=this.value+'40'"/>
       </div>
-    `;
-  },
-
-  _bindRows() {
-    // Semua sudah pakai inline oninput — tidak perlu bind tambahan
+      <input class="field-input" style="padding:5px 8px;font-size:12px" value="${r.displayName}" placeholder="e.g. Legendary" oninput="RarityEditor.update(${i},'displayName',this.value)"/>
+      <input class="field-input" style="padding:5px 8px;font-size:11px;font-family:monospace" value="${r.hexColor}" placeholder="#aaaaaa" oninput="RarityEditor.update(${i},'hexColor',this.value);const sw=this.closest('.rarity-editor-row').querySelector('div[style*=background]');if(sw&&/^#[0-9a-f]{6}$/i.test(this.value)){sw.style.background=this.value;sw.style.borderColor=this.value+'40'}"/>
+      <input class="field-input" type="number" style="padding:5px 8px;font-size:12px" value="${r.order}" min="0" max="99" oninput="RarityEditor.update(${i},'order',parseInt(this.value)||0)"/>
+      <input class="field-input" style="padding:5px 8px;font-size:16px;text-align:center" value="${r.icon || '⬜'}" maxlength="4" oninput="RarityEditor.update(${i},'icon',this.value)"/>
+      <button class="btn btn-danger btn-xs" style="padding:5px 7px" onclick="RarityEditor.removeRow(${i})">✕</button>
+    </div>`;
   },
 
   update(idx, field, value) {
     if (!this.draft[idx]) return;
     this.draft[idx][field] = value;
-    // Auto-generate ID dari displayName
-    if (field === 'displayName') {
-      this.draft[idx].id = value.toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '') || 'CUSTOM';
-    }
+    if (field === 'displayName') this.draft[idx].id = value.toUpperCase().replace(/\s+/g,'_').replace(/[^A-Z0-9_]/g,'') || 'CUSTOM';
   },
-
   addRow() {
-    const nextOrder = this.draft.length > 0
-      ? Math.max(...this.draft.map(r => r.order)) + 1
-      : 0;
-    this.draft.push({
-      id:             'CUSTOM_' + nextOrder,
-      displayName:    'Custom',
-      color:          '&f',
-      hexColor:       '#ffffff',
-      order:          nextOrder,
-      borderMaterial: 'WHITE_STAINED_GLASS_PANE',
-      icon:           '✨',
-    });
+    const nextOrder = this.draft.length > 0 ? Math.max(...this.draft.map(r => r.order)) + 1 : 0;
+    this.draft.push({ id:'CUSTOM_'+nextOrder, displayName:'Custom', color:'&f', hexColor:'#ffffff', order:nextOrder, borderMaterial:'WHITE_STAINED_GLASS_PANE', icon:'✨' });
     this._render();
   },
-
-  removeRow(idx) {
-    if (this.draft.length <= 1) {
-      toast('Must have at least one rarity!', 'error');
-      return;
-    }
-    this.draft.splice(idx, 1);
-    this._render();
-  },
+  removeRow(idx) { if (this.draft.length <= 1) { toast('Must have at least one rarity!', 'error'); return; } this.draft.splice(idx, 1); this._render(); },
 
   async save() {
-    // Validasi: setiap rarity harus punya displayName
     for (const r of this.draft) {
-      if (!r.displayName?.trim()) {
-        toast('All rarities must have a Display Name', 'error');
-        return;
-      }
-      // Pastikan ID ter-generate
-      if (!r.id?.trim()) {
-        r.id = r.displayName.toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
-      }
+      if (!r.displayName?.trim()) { toast('All rarities must have a Display Name', 'error'); return; }
+      if (!r.id?.trim()) r.id = r.displayName.toUpperCase().replace(/\s+/g,'_').replace(/[^A-Z0-9_]/g,'');
     }
-
     try {
       await API.post('/rarities', { rarities: this.draft });
-      toast('Rarities saved & applied to server ✓', 'success');
-      // State.rarities akan di-update via WS RARITIES_UPDATE event
-      // Tapi update juga langsung buat responsiveness
+      toast('Rarities saved ✓', 'success');
       State.setRarities(this.draft);
       Modal.close();
-      // Re-render architect biar rarity picker ikut update
       const el = document.getElementById('page-architect');
       if (el) Architect.render(el);
-    } catch (e) {
-      toast(e.message, 'error');
-    }
+    } catch (e) { toast(e.message, 'error'); }
   },
 
   async reload() {
@@ -755,8 +817,6 @@ const RarityEditor = {
       Modal.close();
       const el = document.getElementById('page-architect');
       if (el) Architect.render(el);
-    } catch (e) {
-      toast(e.message, 'error');
-    }
+    } catch (e) { toast(e.message, 'error'); }
   },
 };

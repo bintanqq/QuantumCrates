@@ -210,25 +210,31 @@ public class CrateManager {
             return;
         }
 
-        int maxAllowed = crate.getMassOpenLimit();
-        int actual     = (count <= 0 || (maxAllowed > 0 && count > maxAllowed))
-                ? maxAllowed
-                : count;
+        // Check cooldown ONCE before starting — not per open
+        if (crate.getCooldownMs() > 0) {
+            PlayerData data = playerDataManager.getOrEmpty(player.getUniqueId());
+            if (data.isOnCooldown(crateId, crate.getCooldownMs())) {
+                sendOpenResultFeedback(player, OpenResult.ON_COOLDOWN, crateId);
+                return;
+            }
+        }
 
+        int maxAllowed = crate.getMassOpenLimit();
         int canPerform = keyManager.countPossibleOpens(player, crate);
-        actual = Math.min(actual <= 0 ? canPerform : actual, canPerform);
+        int actual     = (count <= 0) ? canPerform : Math.min(count, canPerform);
+        if (maxAllowed > 0) actual = Math.min(actual, maxAllowed);
 
         if (actual <= 0) {
             sendOpenResultFeedback(player, OpenResult.MISSING_KEY, crateId);
             return;
         }
 
-        final int totalOpens = actual;
-        final int[] remaining = {totalOpens};
+        final int totalOpens    = actual;
+        final int[] remaining   = {totalOpens};
         final int[] successCount = {0};
-        final int PER_TICK = 10;
+        final int PER_TICK      = 10;
 
-        new BukkitRunnable() {
+        new org.bukkit.scheduler.BukkitRunnable() {
             @Override
             public void run() {
                 if (remaining[0] <= 0 || !player.isOnline()) {
@@ -242,12 +248,15 @@ public class CrateManager {
 
                 int batch = Math.min(PER_TICK, remaining[0]);
                 for (int i = 0; i < batch; i++) {
-                    if (canOpen(player, crateId) != OpenResult.SUCCESS) {
+                    // Use openCrateMassSession which skips cooldown gating
+                    boolean success = openCrateMassSession(player, crateId);
+                    if (success) {
+                        successCount[0]++;
+                    } else {
+                        // Key ran out or lock issue — abort early
                         remaining[0] = 0;
                         break;
                     }
-                    boolean success = openCrate(player, crateId);
-                    if (success) successCount[0]++;
                     remaining[0]--;
                 }
             }
@@ -390,6 +399,81 @@ public class CrateManager {
             w.write(json);
         } catch (IOException e) {
             Logger.severe("Failed to create example crate file.");
+        }
+    }
+
+    private boolean openCrateMassSession(Player player, String crateId) {
+        Crate crate = crateRegistry.get(crateId);
+        if (crate == null || !crate.isEnabled()) return false;
+        if (openingLock.contains(player.getUniqueId())) return false;
+        if (!crate.isCurrentlyOpenable()) return false;
+        if (!keyManager.hasRequiredKeys(player, crate)) return false;
+
+        PlayerData data = playerDataManager.getOrEmpty(player.getUniqueId());
+        openingLock.add(player.getUniqueId());
+
+        try {
+            boolean consumed = keyManager.consumeKeys(player, crate);
+            if (!consumed) return false;
+
+            me.bintanq.quantumcrates.model.reward.RewardResult result =
+                    rewardProcessor.roll(crate, data);
+
+            boolean isRare = plugin.getRarityManager()
+                    .isAtOrAbove(result.getReward().getRarity(), crate.getPity().getRareRarityMinimum());
+
+            if (isRare || result.isPityGuaranteed()) {
+                playerDataManager.resetPity(player.getUniqueId(), crateId);
+                me.bintanq.quantumcrates.web.WebSocketBridge.getInstance()
+                        .broadcastPityUpdate(player.getUniqueId(), crateId, 0, true);
+            } else {
+                playerDataManager.incrementPity(player.getUniqueId(), crateId);
+                int newPity = playerDataManager.getPity(player.getUniqueId(), crateId);
+                me.bintanq.quantumcrates.web.WebSocketBridge.getInstance()
+                        .broadcastPityUpdate(player.getUniqueId(), crateId, newPity, false);
+            }
+
+            if (crate.getCooldownMs() > 0) {
+                playerDataManager.setLastOpen(player.getUniqueId(), crateId);
+            }
+
+            deliverReward(player, result);
+
+            if (plugin.getParticleManager() != null) {
+                plugin.getParticleManager().playOpenEffect(crate, player.getLocation());
+            }
+
+            if (result.getReward().isBroadcast()) {
+                String msg = result.getReward().getBroadcastMessage()
+                        .replace("{player}", player.getName())
+                        .replace("{reward}", result.getReward().getDisplayName())
+                        .replace("&", "\u00A7");
+                plugin.getServer().broadcastMessage(msg);
+            }
+
+            org.bukkit.Location loc = player.getLocation();
+            me.bintanq.quantumcrates.log.CrateLog crateLog =
+                    new me.bintanq.quantumcrates.log.CrateLog(
+                            player.getUniqueId(), player.getName(),
+                            crateId,
+                            result.getReward().getId(),
+                            result.getReward().getDisplayName(),
+                            result.getPityAtRoll(),
+                            System.currentTimeMillis(),
+                            loc.getWorld() != null ? loc.getWorld().getName() : "unknown",
+                            loc.getX(), loc.getY(), loc.getZ()
+                    );
+            logManager.log(crateLog);
+            me.bintanq.quantumcrates.web.WebSocketBridge.getInstance().broadcastCrateOpen(crateLog);
+
+            if (plugin.getStatsScheduler() != null) {
+                plugin.getStatsScheduler().incrementOpenings();
+            }
+
+            return true;
+
+        } finally {
+            openingLock.remove(player.getUniqueId());
         }
     }
 

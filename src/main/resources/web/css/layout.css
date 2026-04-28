@@ -25,13 +25,13 @@
 
 /* ══ SIDEBAR ══ */
 .sidebar-top{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 0}
-.sidebar-logo{display:flex;align-items:center;gap:10px;padding:0 16px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;white-space:nowrap;overflow:hidden}
-.sidebar-logo-icon{width:32px;height:32px;min-width:32px;background:linear-gradient(135deg,var(--cyan),#004a44);border-radius:8px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-cyan)}
-.sidebar-logo-text{font-size:12.5px;font-weight:800;letter-spacing:.5px}
+.sidebar-logo{display:flex;align-items:center;gap:10px;padding:0 16px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;white-space:nowrap;overflow:hidden;transition:padding .3s var(--ease)}
+.sidebar-logo-icon{width:32px;height:32px;min-width:32px;background:linear-gradient(135deg,var(--cyan),#004a44);border-radius:8px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-cyan);flex-shrink:0}
+.sidebar-logo-text{font-size:12.5px;font-weight:800;letter-spacing:.5px;transition:opacity .25s var(--ease),max-width .3s var(--ease),margin .3s var(--ease);max-width:160px;overflow:hidden;white-space:nowrap}
 .sidebar-logo-text span{color:var(--cyan)}
-.sidebar-logo-ver{font-size:9.5px;color:var(--text3)}
+.sidebar-logo-ver{font-size:9.5px;color:var(--text3);transition:opacity .25s var(--ease),max-width .3s var(--ease);max-width:160px;overflow:hidden;white-space:nowrap}
 
-/* ── Nav item — satu definisi ── */
+/* ── Nav item ── */
 .nav-item{
     display:flex;
     align-items:center;
@@ -39,7 +39,7 @@
     padding:9px 16px;
     color:var(--text2);
     border-radius:0;
-    transition:all .2s var(--ease);
+    transition:background .2s var(--ease),color .2s var(--ease),padding .3s var(--ease),justify-content .3s var(--ease);
     font-weight:500;
     font-size:12.5px;
     cursor:pointer;
@@ -47,61 +47,147 @@
     border-left:2px solid transparent;
     white-space:nowrap;
     overflow:hidden;
+    width:100%;
+    box-sizing:border-box;
 }
 .nav-item:hover{color:var(--text);background:var(--cyan-dim)}
 .nav-item.active{color:var(--cyan);background:var(--cyan-dim2);border-left-color:var(--cyan)}
 
 .nav-icon{width:16px;height:16px;min-width:16px;stroke:currentColor;flex-shrink:0}
-.nav-badge{margin-left:auto;background:var(--cyan);color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;animation:pulse-badge 2s infinite}
+
+.nav-label{
+    flex:1;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    transition:opacity .2s var(--ease),max-width .3s var(--ease);
+    opacity:1;
+    max-width:160px;
+}
+
+.nav-badge{
+    background:var(--cyan);
+    color:#fff;
+    font-size:9px;
+    font-weight:800;
+    padding:2px 6px;
+    border-radius:4px;
+    flex-shrink:0;
+    white-space:nowrap;
+    animation:pulse-badge 2s infinite;
+    transition:opacity .2s var(--ease),max-width .3s var(--ease),padding .3s var(--ease);
+    overflow:hidden;
+    max-width:60px;
+    /* KUNCI: jangan pakai margin-left:auto karena bikin overflow saat collapse */
+}
 @keyframes pulse-badge{0%,100%{opacity:1}50%{opacity:.6}}
 
-.nav-group-label{font-size:9px;font-weight:700;color:var(--text4);letter-spacing:1.2px;text-transform:uppercase;padding:8px 16px 4px;white-space:nowrap;overflow:hidden;transition:all .3s var(--ease)}
+.nav-group-label{
+    font-size:9px;
+    font-weight:700;
+    color:var(--text4);
+    letter-spacing:1.2px;
+    text-transform:uppercase;
+    padding:8px 16px 4px;
+    white-space:nowrap;
+    overflow:hidden;
+    transition:opacity .2s var(--ease),height .25s var(--ease),padding .25s var(--ease);
+    opacity:1;
+    height:28px;
+}
 
 /* ── Collapsed state ── */
+.sidebar.collapsed .sidebar-logo{padding-left:12px;padding-right:12px}
 .sidebar.collapsed .sidebar-logo-text,
-.sidebar.collapsed .sidebar-logo-ver,
-.sidebar.collapsed .nav-group-label,
-.sidebar.collapsed .server-info,
-.sidebar.collapsed .btn-logout span {
-    opacity:0;
-    width:0;
+.sidebar.collapsed .sidebar-logo-ver{opacity:0;max-width:0}
+
+.sidebar.collapsed .nav-group-label{opacity:0;height:0;padding-top:0;padding-bottom:0;pointer-events:none}
+
+.sidebar.collapsed .nav-badge{opacity:0;max-width:0;padding:0;pointer-events:none}
+
+.sidebar.collapsed .nav-item{
+    justify-content:center;
+    padding:10px 0;
+    gap:0;
+    border-left-color:transparent !important;
+}
+.sidebar.collapsed .nav-item.active{
+    border-left-color:transparent !important;
+    /* active indicator pindah ke top/bottom atau hilang — pakai background aja */
+}
+.sidebar.collapsed .nav-label{opacity:0;max-width:0;pointer-events:none}
+
+/* server card collapsed */
+.sidebar.collapsed .server-card{
+    justify-content:center;
+    padding:9px 0;
+    gap:0;
+}
+.sidebar.collapsed .server-info{opacity:0;max-width:0;pointer-events:none;margin:0}
+.sidebar.collapsed .server-refresh{opacity:0;pointer-events:none;width:0;overflow:hidden}
+
+/* logout collapsed */
+.sidebar.collapsed .btn-logout{justify-content:center;padding:8px 0;gap:0}
+.sidebar.collapsed .btn-logout-text{opacity:0;max-width:0;overflow:hidden}
+
+/* ══ SIDEBAR BOTTOM ══ */
+.sidebar-bottom{padding:12px;border-top:1px solid var(--border)}
+
+.server-card{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:9px 10px;
+    background:var(--bg3);
+    border:1px solid var(--border);
+    border-radius:var(--radius-sm);
+    margin-bottom:8px;
+    overflow:hidden;
+    transition:padding .3s var(--ease),gap .3s var(--ease);
+    min-width:0;
+}
+.server-status-dot{width:7px;height:7px;min-width:7px;border-radius:50%;background:var(--text3);transition:background .4s;flex-shrink:0}
+.server-status-dot.online{background:var(--green);box-shadow:0 0 6px var(--green)}
+.server-status-dot.offline{background:var(--red)}
+.server-info{
+    flex:1;
+    min-width:0;
+    overflow:hidden;
+    transition:opacity .2s var(--ease),max-width .3s var(--ease);
+    opacity:1;
+    max-width:200px;
+}
+.server-name{font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.server-meta{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.server-refresh{
+    color:var(--text3);
+    padding:3px;
+    border-radius:4px;
+    transition:color .2s,opacity .2s var(--ease),width .3s var(--ease);
+    flex-shrink:0;
+    overflow:hidden;
+}
+.server-refresh:hover{color:var(--cyan)}
+
+.btn-logout{display:flex;align-items:center;gap:7px;width:100%;padding:8px 10px;border-radius:var(--radius-sm);color:var(--text3);font-size:11.5px;font-weight:600;transition:all .2s,padding .3s var(--ease),gap .3s var(--ease);overflow:hidden;white-space:nowrap}
+.btn-logout:hover{color:var(--red);background:var(--red-dim)}
+.btn-logout svg{flex-shrink:0}
+.btn-logout-text{
+    transition:opacity .2s var(--ease),max-width .3s var(--ease);
+    opacity:1;
+    max-width:160px;
     overflow:hidden;
     white-space:nowrap;
 }
 
-.sidebar.collapsed .nav-badge{display:none}
-
-.sidebar.collapsed .nav-item{
-    justify-content:center;
-    padding:9px;
-    gap:0;
-}
-
-.sidebar.collapsed .nav-item > *:not(.nav-icon){
-    opacity:0;
-    width:0;
-    max-width:0;
-    overflow:hidden;
+/* ── Global no-spinner for ALL number inputs ── */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{
+    -webkit-appearance:none;
+    appearance:none;
     margin:0;
-    padding:0;
 }
-
-.sidebar.collapsed .server-card{justify-content:center;padding:9px}
-.sidebar.collapsed .btn-logout{justify-content:center;padding:8px}
-
-/* ══ SIDEBAR BOTTOM ══ */
-.sidebar-bottom{padding:12px;border-top:1px solid var(--border)}
-.server-card{display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden}
-.server-status-dot{width:7px;height:7px;min-width:7px;border-radius:50%;background:var(--text3);transition:background .4s}
-.server-status-dot.online{background:var(--green);box-shadow:0 0 6px var(--green)}
-.server-status-dot.offline{background:var(--red)}
-.server-info{flex:1;min-width:0;overflow:hidden}
-.server-name{font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.server-meta{font-size:10px;color:var(--text3)}
-.server-refresh{color:var(--text3);padding:3px;border-radius:4px;transition:color .2s}
-.server-refresh:hover{color:var(--cyan)}
-.btn-logout{display:flex;align-items:center;gap:7px;width:100%;padding:8px 10px;border-radius:var(--radius-sm);color:var(--text3);font-size:11.5px;font-weight:600;transition:all .2s}
-.btn-logout:hover{color:var(--red);background:var(--red-dim)}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
 
 /* ══ TOPBAR ══ */
 .topbar{display:flex;align-items:center;gap:12px;padding:0 20px;height:52px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}

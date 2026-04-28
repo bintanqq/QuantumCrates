@@ -116,11 +116,12 @@ public class WebServer {
         registerAuthRoutes();
         registerCrateRoutes();
         registerKeyRoutes();
+        registerKeyConfigRoute();
         registerLogRoutes();
         registerPlayerRoutes();
         registerServerRoutes();
         registerMessagesRoutes();
-        registerRarityRoutes();   // NEW
+        registerRarityRoutes();
         registerWebSocket();
 
         app.exception(Exception.class, (e, ctx) -> {
@@ -351,6 +352,59 @@ public class WebServer {
             } catch (Exception e) { ctx.status(400).json(err(e.getMessage())); }
         });
     }
+
+    private void registerKeyConfigRoute() {
+        app.post("/api/keys/config/physical", ctx -> {
+            try {
+                com.google.gson.JsonObject body = me.bintanq.quantumcrates.serializer.GsonProvider
+                        .getGson().fromJson(ctx.body(), com.google.gson.JsonObject.class);
+
+                // Validate material
+                String material = body.has("material") ? body.get("material").getAsString().toUpperCase() : null;
+                if (material != null) {
+                    org.bukkit.Material mat = org.bukkit.Material.matchMaterial(material);
+                    if (mat == null) {
+                        ctx.status(400).json(err("Invalid material: " + material));
+                        return;
+                    }
+                    plugin.getConfig().set("keys.physical.material", material);
+                }
+
+                if (body.has("customModelData")) {
+                    plugin.getConfig().set("keys.physical.custom-model-data",
+                            body.get("customModelData").getAsInt());
+                }
+
+                if (body.has("extraLore") && body.get("extraLore").isJsonArray()) {
+                    java.util.List<String> lore = new java.util.ArrayList<>();
+                    body.get("extraLore").getAsJsonArray()
+                            .forEach(el -> lore.add(el.getAsString()));
+                    plugin.getConfig().set("keys.physical.extra-lore", lore);
+                }
+
+                plugin.saveConfig();
+
+                // Reload KeyManager on main thread so material reference updates safely
+                org.bukkit.Bukkit.getScheduler().runTask(plugin,
+                        () -> plugin.getKeyManager().reload());
+
+                ctx.json(ok("Physical key config saved and reloaded."));
+
+            } catch (Exception e) {
+                ctx.status(400).json(err("Invalid request: " + e.getMessage()));
+            }
+        });
+
+        // GET /api/keys/config/physical — return current physical key settings
+        app.get("/api/keys/config/physical", ctx -> {
+            java.util.Map<String, Object> cfg = new java.util.LinkedHashMap<>();
+            cfg.put("material",       plugin.getConfig().getString("keys.physical.material", "TRIPWIRE_HOOK"));
+            cfg.put("customModelData",plugin.getConfig().getInt("keys.physical.custom-model-data", -1));
+            cfg.put("extraLore",      plugin.getConfig().getStringList("keys.physical.extra-lore"));
+            ctx.result(me.bintanq.quantumcrates.serializer.GsonProvider.getGson().toJson(cfg));
+        });
+    }
+
 
     /* ─────────────────────── Logs ─────────────────────── */
 

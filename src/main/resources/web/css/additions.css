@@ -1,0 +1,57 @@
+/* ══════════════════════════════════════════════
+   ADDITIONS — tambahkan ke components.css atau buat file baru
+   ══════════════════════════════════════════════ */
+
+/* ── Hide native number spinners everywhere ── */
+input[type=number].no-spinner::-webkit-inner-spin-button,
+input[type=number].no-spinner::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type=number].no-spinner {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* ── Weight +/- buttons ── */
+.wt-btn {
+  width: 22px;
+  height: 30px;
+  border-radius: 4px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all .15s;
+  font-family: inherit;
+}
+.wt-btn:hover {
+  background: var(--surface2);
+  color: var(--cyan);
+  border-color: var(--border2);
+}
+.wt-btn:active {
+  transform: scale(0.9);
+}
+
+/* ── Slider styles (hapus kalau slider sudah dihilangkan) ── */
+/* Keep .slider-track-wrap etc tapi hidden kalau masih direferensikan di animasi */
+.slider-track-wrap,
+.slider-track,
+.slider-fill,
+.slider-thumb,
+.slider-row,
+.slider-name,
+.slider-controls,
+.slider-btn,
+.slider-val,
+.slider-range {
+  display: none !important;
+}
