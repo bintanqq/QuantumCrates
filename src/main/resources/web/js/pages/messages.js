@@ -1,31 +1,35 @@
 /* ══ PAGE: MESSAGES ══ */
 const Messages = {
-  chatData: {},
-  guiData:  {},
-  activeTab: 'chat',
-  dirty: false,
+  chatData: {}, guiData: {}, activeTab: 'chat', dirty: false,
 
   render(container) {
     container.innerHTML = `
-      <div class="page-header">
-        <div>
-          <div class="page-title">Messages</div>
-          <div class="page-sub">All plugin messages — zero hardcoded. Supports &amp; color codes.</div>
-        </div>
-        <div class="page-actions">
-          <button class="btn btn-ghost btn-sm" onclick="Messages.reset()">↩ Reset</button>
-          <button class="btn btn-primary btn-sm" id="btnSaveMessages">💾 Save Messages</button>
+      <div class="page-header header-messages">
+        <div class="page-header-inner">
+          <div>
+            <div class="page-title">Messages</div>
+            <div class="page-sub">All plugin messages — zero hardcoded. Supports &amp; color codes.</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-ghost btn-sm" style="color:rgba(255,255,255,.85);border-color:rgba(255,255,255,.3)" onclick="Messages.reset()">
+              ${ICONS.reload} Reset
+            </button>
+            <button class="btn btn-ghost btn-sm" style="color:rgba(255,255,255,.85);border-color:rgba(255,255,255,.3)" id="btnSaveMessages">
+              ${ICONS.diskSave} Save Messages
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Tab switcher -->
       <div style="display:flex;align-items:center;gap:0;margin-bottom:16px">
         <div class="seg-ctrl" id="msgTabCtrl">
           <div class="seg-opt active" data-tab="chat" onclick="Messages.switchTab('chat')">
-            💬 Chat Messages
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            Chat Messages
           </div>
           <div class="seg-opt" data-tab="gui" onclick="Messages.switchTab('gui')">
-            📦 GUI Messages
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+            GUI Messages
           </div>
         </div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
@@ -35,25 +39,15 @@ const Messages = {
         </div>
       </div>
 
-      <!-- Description banner per tab -->
-      <div id="chatTabDesc" style="margin-bottom:12px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11.5px;color:var(--text2);line-height:1.7">
+      <div id="chatTabDesc" style="margin-bottom:13px;padding:11px 15px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11.5px;color:var(--text2);line-height:1.7">
         <strong style="color:var(--text)">Chat Messages</strong> — shown in player chat with prefix.<br/>
-        Placeholders: <code style="color:var(--cyan)">{player}</code> <code style="color:var(--cyan)">{crate}</code>
-        <code style="color:var(--cyan)">{reward}</code> <code style="color:var(--cyan)">{key}</code>
-        <code style="color:var(--cyan)">{amount}</code> <code style="color:var(--cyan)">{time}</code>
-        <code style="color:var(--cyan)">{count}</code> <code style="color:var(--cyan)">{schedule}</code>
+        Placeholders: <code style="color:var(--cyan)">{player}</code> <code style="color:var(--cyan)">{crate}</code> <code style="color:var(--cyan)">{reward}</code> <code style="color:var(--cyan)">{key}</code> <code style="color:var(--cyan)">{amount}</code> <code style="color:var(--cyan)">{time}</code> <code style="color:var(--cyan)">{count}</code>
       </div>
-      <div id="guiTabDesc" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11.5px;color:var(--text2);line-height:1.7">
+      <div id="guiTabDesc" style="display:none;margin-bottom:13px;padding:11px 15px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11.5px;color:var(--text2);line-height:1.7">
         <strong style="color:var(--text)">GUI Messages</strong> — inventory item names, lore lines, and button labels.<br/>
-        Placeholders: <code style="color:var(--cyan)">{crate}</code> <code style="color:var(--cyan)">{page}</code>
-        <code style="color:var(--cyan)">{pages}</code> <code style="color:var(--cyan)">{chance}</code>
-        <code style="color:var(--cyan)">{rarity}</code> <code style="color:var(--cyan)">{weight}</code>
-        <code style="color:var(--cyan)">{pity}</code> <code style="color:var(--cyan)">{pity_max}</code>
-        <code style="color:var(--cyan)">{key}</code> <code style="color:var(--cyan)">{balance}</code>
-        <code style="color:var(--cyan)">{needed}</code>
+        Placeholders: <code style="color:var(--cyan)">{crate}</code> <code style="color:var(--cyan)">{page}</code> <code style="color:var(--cyan)">{pages}</code> <code style="color:var(--cyan)">{chance}</code> <code style="color:var(--cyan)">{rarity}</code> <code style="color:var(--cyan)">{pity}</code>
       </div>
 
-      <!-- Grid -->
       <div class="msg-grid" id="msgGrid">
         <div class="empty-state">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -61,37 +55,22 @@ const Messages = {
         </div>
       </div>
     `;
-
     Utils.on(Utils.qs('#btnSaveMessages'), 'click', () => this.save());
     this.load();
   },
 
   async load() {
     try {
-      // Load both sections — API returns { chat: {...}, gui: {...} }
-      // Server endpoint /api/config/messages now returns both
       const res = await API.getMessages();
-      if (res.chat && res.gui) {
-        this.chatData = res.chat;
-        this.guiData  = res.gui;
-      } else {
-        // Fallback: server returns flat object (old format) → treat as chat only
-        this.chatData = res;
-        this.guiData  = {};
-      }
+      if (res.chat && res.gui) { this.chatData = res.chat; this.guiData = res.gui; }
+      else { this.chatData = res; this.guiData = {}; }
       this.renderGrid();
-    } catch (e) {
-      // Demo fallback
-      this.chatData = DEMO_MESSAGES;
-      this.guiData  = DEMO_GUI_MESSAGES;
-      this.renderGrid();
-    }
+    } catch (e) { this.chatData = DEMO_MESSAGES; this.guiData = DEMO_GUI_MESSAGES; this.renderGrid(); }
   },
 
   switchTab(tab) {
     this.activeTab = tab;
-    Utils.qsa('#msgTabCtrl .seg-opt').forEach(o =>
-      o.classList.toggle('active', o.dataset.tab === tab));
+    Utils.qsa('#msgTabCtrl .seg-opt').forEach(o => o.classList.toggle('active', o.dataset.tab === tab));
     Utils.qs('#chatTabDesc').style.display = tab === 'chat' ? '' : 'none';
     Utils.qs('#guiTabDesc').style.display  = tab === 'gui'  ? '' : 'none';
     this.renderGrid();
@@ -105,142 +84,57 @@ const Messages = {
     });
   },
 
-  renderGrid(filter = '') {
-    const grid = Utils.qs('#msgGrid');
-    if (!grid) return;
+  renderGrid() {
+    const grid = Utils.qs('#msgGrid'); if (!grid) return;
     grid.innerHTML = '';
-
     const data = this.activeTab === 'chat' ? this.chatData : this.guiData;
     const entries = Object.entries(data);
-
-    if (!entries.length) {
-      grid.innerHTML = '<div class="empty-state"><p>No messages found in this section.</p></div>';
-      return;
-    }
-
-    // Group entries by prefix (e.g. "help-", "info-", "preview-", etc.)
+    if (!entries.length) { grid.innerHTML = '<div class="empty-state"><p>No messages found.</p></div>'; return; }
     const groups = this._groupEntries(entries);
-
     groups.forEach(([groupName, groupEntries]) => {
-      // Group header
       if (groupName) {
-        const header = Utils.el('div', '',
-          `<div style="grid-column:1/-1;padding:8px 0 4px;font-size:9.5px;font-weight:700;
-            color:var(--text3);letter-spacing:1px;text-transform:uppercase;
-            border-bottom:1px solid var(--border);margin-bottom:4px">
-            ${groupName}
-          </div>`
-        );
+        const header = Utils.el('div', '', `<div style="grid-column:1/-1;padding:8px 0 4px;font-size:9.5px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);margin-bottom:4px">${groupName}</div>`);
         grid.appendChild(header);
       }
-
       groupEntries.forEach(([key, val]) => {
         const item = Utils.el('div', 'msg-item');
-        const isMultiline = val.length > 60 || val.includes('\\n');
-        const rows = isMultiline ? 2 : 1;
-
-        item.innerHTML = `
-          <div class="msg-key">${key}</div>
-          <textarea class="msg-input" data-key="${key}" rows="${rows}"
-            style="resize:vertical">${val}</textarea>
-          <div class="msg-preview">${Utils.mc(val) || '<span style="opacity:.3">empty</span>'}</div>
-        `;
-
+        const rows = (val.length > 60 || val.includes('\\n')) ? 2 : 1;
+        item.innerHTML = `<div class="msg-key">${key}</div><textarea class="msg-input" data-key="${key}" rows="${rows}" style="resize:vertical">${val}</textarea><div class="msg-preview">${Utils.mc(val) || '<span style="opacity:.3">empty</span>'}</div>`;
         const ta = item.querySelector('textarea');
         ta.oninput = () => {
-          // Auto-resize
-          ta.style.height = 'auto';
-          ta.style.height = ta.scrollHeight + 'px';
-          // Update data
+          ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';
           if (this.activeTab === 'chat') this.chatData[key] = ta.value;
           else                           this.guiData[key]  = ta.value;
-          // Update preview
-          item.querySelector('.msg-preview').innerHTML =
-            Utils.mc(ta.value) || '<span style="opacity:.3">empty</span>';
+          item.querySelector('.msg-preview').innerHTML = Utils.mc(ta.value) || '<span style="opacity:.3">empty</span>';
           this.dirty = true;
         };
-
-        // Initial height fit
-        setTimeout(() => {
-          ta.style.height = 'auto';
-          ta.style.height = ta.scrollHeight + 'px';
-        }, 0);
-
+        setTimeout(() => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }, 0);
         grid.appendChild(item);
       });
     });
   },
 
-  /**
-   * Group entries by their key prefix (before the first "-").
-   * Returns array of [groupLabel, entries[]] sorted alphabetically by group.
-   */
   _groupEntries(entries) {
     const groupMap = new Map();
     entries.forEach(([key, val]) => {
-      const parts = key.split('-');
-      // Use first part as group, but merge small groups into "General"
-      let group = parts[0];
-      // Specific group labels
-      const groupLabels = {
-        prefix:    'General',
-        no:        'General',
-        player:    'General',
-        invalid:   'General',
-        reload:    'General',
-        crate:     'Crate',
-        cooldown:  'Crate',
-        already:   'Crate',
-        reward:    'Rewards',
-        broadcast: 'Rewards',
-        inventory: 'Rewards',
-        key:       'Keys',
-        mass:      'Keys',
-        pity:      'Pity',
-        setloc:    'Admin',
-        info:      'Info Command',
-        usage:     'Usage Hints',
-        keys:      'Keys',
-        list:      'List Command',
-        help:      'Help Command',
-        preview:   'Preview GUI',
-        prev:      'Preview GUI',
-        next:      'Preview GUI',
-        close:     'Preview GUI',
-        'reward-lore': 'Reward Lore',
-        'reward-weight': 'Reward Lore',
-        'reward-rarity': 'Reward Lore',
-        'reward-amount': 'Reward Lore',
-        'reward-command': 'Reward Lore',
-        'reward-broadcast': 'Reward Lore',
-      };
+      const group = key.split('-')[0];
+      const groupLabels = { prefix:'General',no:'General',player:'General',invalid:'General',reload:'General',crate:'Crate',cooldown:'Crate',reward:'Rewards',broadcast:'Rewards',key:'Keys',mass:'Keys',pity:'Pity',preview:'Preview GUI',prev:'Preview GUI',next:'Preview GUI',close:'Preview GUI',info:'Info Command',help:'Help Command' };
       const label = groupLabels[group] || group.charAt(0).toUpperCase() + group.slice(1);
       if (!groupMap.has(label)) groupMap.set(label, []);
       groupMap.get(label).push([key, val]);
     });
-    return [...groupMap.entries()].sort(([a], [b]) => a.localeCompare(b));
+    return [...groupMap.entries()].sort(([a],[b]) => a.localeCompare(b));
   },
 
   async save() {
     const btn = Utils.qs('#btnSaveMessages');
-    btn.disabled = true;
-    btn.textContent = '⟳ Saving...';
-    try {
-      // Send both sections — server endpoint needs to handle { chat, gui } body
-      await API.saveMessages({ chat: this.chatData, gui: this.guiData });
-      this.dirty = false;
-      toast('Messages saved & applied to server ✓', 'success');
-    } catch (e) {
-      toast(e.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '💾 Save Messages';
-    }
+    btn.disabled = true; btn.innerHTML = `<svg class="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 00-9-9"/></svg> Saving...`;
+    try { await API.saveMessages({ chat: this.chatData, gui: this.guiData }); this.dirty = false; toast('Messages saved & applied to server', 'success'); }
+    catch (e) { toast(e.message, 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = `${ICONS.diskSave} Save Messages`; }
   },
 
-  reset() {
-    if (confirm('Reload messages from server? Unsaved changes will be lost.')) this.load();
-  },
+  reset() { if (confirm('Reload messages from server? Unsaved changes will be lost.')) this.load(); },
 };
 
 /* ── Demo GUI messages (shown in demo mode / fallback) ── */

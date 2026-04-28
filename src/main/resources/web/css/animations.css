@@ -1,51 +1,171 @@
-@keyframes spin{to{transform:rotate(360deg)}}
-.spin{animation:spin .8s linear infinite}
-@keyframes fade-in{from{opacity:0}to{opacity:1}}
-@keyframes slide-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-@keyframes slide-down{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-@keyframes scale-in{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
-.animate-in{animation:slide-up .28s var(--ease-back) both}
-.animate-fade{animation:fade-in .2s var(--ease) both}
+/* ══════════════════════════════════════════
+   ANIMATIONS — smooth, cozy, no glitchy jumps
+   ══════════════════════════════════════════ */
 
-@keyframes page-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.page.active{animation:page-enter .28s var(--ease-out) both}
+/* ── Base keyframes ── */
+@keyframes spin { to { transform: rotate(360deg) } }
+@keyframes fade-in { from { opacity:0 } to { opacity:1 } }
 
-.stagger-children>*{animation:slide-up .3s var(--ease-back) both}
-.stagger-children>*:nth-child(1){animation-delay:.04s}
-.stagger-children>*:nth-child(2){animation-delay:.08s}
-.stagger-children>*:nth-child(3){animation-delay:.12s}
-.stagger-children>*:nth-child(4){animation-delay:.16s}
-.stagger-children>*:nth-child(5){animation-delay:.20s}
-.stagger-children>*:nth-child(6){animation-delay:.24s}
+@keyframes slide-up {
+  from { opacity:0; transform: translateY(10px) }
+  to   { opacity:1; transform: translateY(0) }
+}
+@keyframes slide-down {
+  from { opacity:0; transform: translateY(-8px) }
+  to   { opacity:1; transform: translateY(0) }
+}
+@keyframes scale-in {
+  from { opacity:0; transform: scale(.96) }
+  to   { opacity:1; transform: scale(1) }
+}
 
-.card{transition:border-color .18s var(--ease),box-shadow .18s var(--ease),transform .18s var(--ease)}
-.card:hover{border-color:var(--border2);box-shadow:var(--shadow);transform:translateY(-1px)}
-.card.no-hover:hover{transform:none;box-shadow:none}
+/* ── Page transitions ── */
+@keyframes page-enter {
+  from { opacity:0; transform: translateY(12px) }
+  to   { opacity:1; transform: translateY(0) }
+}
+.page.active {
+  animation: page-enter .35s var(--ease-out) both;
+}
 
-@keyframes nav-sweep{from{opacity:0;transform:scaleY(0)}to{opacity:1;transform:scaleY(1)}}
-.nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--cyan);border-radius:0 2px 2px 0;animation:nav-sweep .18s var(--ease-back) both}
+/* ── Stagger children (generous delays, slow enough to feel cozy) ── */
+.stagger-children > * {
+  animation: slide-up .38s var(--ease-out) both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: .04s }
+.stagger-children > *:nth-child(2) { animation-delay: .09s }
+.stagger-children > *:nth-child(3) { animation-delay: .14s }
+.stagger-children > *:nth-child(4) { animation-delay: .19s }
+.stagger-children > *:nth-child(5) { animation-delay: .24s }
+.stagger-children > *:nth-child(6) { animation-delay: .29s }
 
-@keyframes reward-pop{from{opacity:0;transform:scale(.85) rotate(-2deg)}to{opacity:1;transform:scale(1) rotate(0deg)}}
-.reward-card{animation:reward-pop .22s var(--ease-spring) both}
+/* ── Card hover — very smooth, no jarring jump ── */
+.card {
+  transition:
+    border-color .22s var(--ease-smooth),
+    box-shadow   .22s var(--ease-smooth),
+    transform    .22s var(--ease-smooth);
+  will-change: transform;
+}
+.card:hover {
+  border-color: var(--border2);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.card.no-hover:hover {
+  transform: none;
+  box-shadow: var(--shadow-xs);
+}
 
-@keyframes log-slide{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}
-.log-item{animation:log-slide .24s var(--ease-out) both}
+/* ── Nav active indicator sweep ── */
+@keyframes nav-sweep {
+  from { transform: scaleY(0); opacity:0 }
+  to   { transform: scaleY(1); opacity:1 }
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 3px;
+  background: var(--cyan);
+  border-radius: 0 3px 3px 0;
+  animation: nav-sweep .22s var(--ease-back) both;
+}
 
-@keyframes num-tick{0%{transform:translateY(-4px);opacity:0}100%{transform:translateY(0);opacity:1}}
-.tstat-val.updating{animation:num-tick .18s var(--ease-out) both}
+/* ── Reward card pop ── */
+@keyframes reward-pop {
+  from { opacity:0; transform: scale(.88) translateY(6px) }
+  to   { opacity:1; transform: scale(1) translateY(0) }
+}
+.reward-card { animation: reward-pop .28s var(--ease-spring) both; }
 
-.sidebar{transition:width .3s var(--ease),min-width .3s var(--ease)}
+/* ── Log slide ── */
+@keyframes log-slide {
+  from { opacity:0; transform: translateX(10px) }
+  to   { opacity:1; transform: translateX(0) }
+}
+.log-item { animation: log-slide .26s var(--ease-out) both; }
 
-@keyframes modal-in{from{opacity:0;transform:scale(.93) translateY(16px)}to{opacity:1;transform:scale(1) translateY(0)}}
-@keyframes modal-overlay-in{from{opacity:0}to{opacity:1}}
-.modal-overlay.open{animation:modal-overlay-in .18s var(--ease) both}
-.modal.animate-in{animation:modal-in .28s var(--ease-spring) both}
+/* ── Stat number tick ── */
+@keyframes num-tick {
+  0%   { transform: translateY(-5px); opacity:0 }
+  100% { transform: translateY(0);    opacity:1 }
+}
+.tstat-val.updating { animation: num-tick .22s var(--ease-out) both; }
 
-@keyframes toast-in{from{opacity:0;transform:translateY(10px) scale(.93)}to{opacity:1;transform:none}}
-@keyframes toast-out{to{opacity:0;transform:translateY(10px) scale(.93)}}
+/* ── Sidebar ── */
+.sidebar {
+  transition:
+    width    .32s var(--ease-smooth),
+    min-width .32s var(--ease-smooth);
+}
 
-@keyframes breathe-online{0%,100%{box-shadow:0 0 3px var(--green)}50%{box-shadow:0 0 8px var(--green)}}
-.server-status-dot.online{animation:breathe-online 2.5s ease-in-out infinite}
+/* ── Modal ── */
+@keyframes modal-in {
+  from { opacity:0; transform: scale(.94) translateY(18px) }
+  to   { opacity:1; transform: scale(1) translateY(0) }
+}
+@keyframes modal-overlay-in {
+  from { opacity:0 }
+  to   { opacity:1 }
+}
+.modal-overlay.open { animation: modal-overlay-in .2s var(--ease) both; }
+.modal.animate-in   { animation: modal-in .3s var(--ease-spring) both; }
 
-.btn{transition:all .15s var(--ease),transform .1s var(--ease-spring)}
-.btn:active{transform:scale(.97) translateY(1px)!important}
+/* ── Toast ── */
+@keyframes toast-in  { from { opacity:0; transform: translateY(12px) scale(.94) } to { opacity:1; transform: none } }
+@keyframes toast-out { to   { opacity:0; transform: translateY(12px) scale(.94) } }
+
+/* ── Server status breathing ── */
+@keyframes breathe-online {
+  0%,100% { box-shadow: 0 0 0 0 rgba(26,122,74,.5) }
+  50%     { box-shadow: 0 0 0 4px rgba(26,122,74,.0) }
+}
+.server-status-dot.online {
+  animation: breathe-online 2.8s ease-in-out infinite;
+}
+
+/* ── Buttons ── */
+.btn {
+  transition:
+    background .18s var(--ease-smooth),
+    border-color .18s var(--ease-smooth),
+    color .18s var(--ease-smooth),
+    box-shadow .18s var(--ease-smooth),
+    transform .14s var(--ease-spring),
+    opacity .18s var(--ease-smooth);
+}
+.btn:active { transform: scale(.96) translateY(1px) !important; }
+
+/* ── Spin util ── */
+.spin { animation: spin .75s linear infinite; }
+
+/* ── Shimmer skeleton ── */
+@keyframes shimmer {
+  0%   { background-position: -300% 0 }
+  100% { background-position: 300% 0 }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg3) 25%,
+    var(--border2) 50%,
+    var(--bg3) 75%
+  );
+  background-size: 300% 100%;
+  animation: shimmer 1.8s ease infinite;
+  border-radius: var(--radius-sm);
+  color: transparent !important;
+}
+.skeleton * { visibility: hidden; }
+
+/* ── Live dot pulse ── */
+@keyframes pulse-live {
+  0%,100% { transform: scale(1); opacity: 1 }
+  50%     { transform: scale(1.5); opacity: .4 }
+}
+.live-dot { animation: pulse-live 1.6s ease-in-out infinite; }
+
+/* ── Animate in util ── */
+.animate-in   { animation: slide-up .3s var(--ease-out) both; }
+.animate-fade { animation: fade-in .22s var(--ease) both; }

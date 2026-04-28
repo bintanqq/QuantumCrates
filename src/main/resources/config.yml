@@ -85,7 +85,7 @@ web:
 #   {schedule}  → next open time (scheduled crate)
 # ─────────────────────────────────────────────────────────────
 messages:
-  prefix: "&8[&bQuantumCrates&8] &r"
+  prefix: "&8[&aQuantumCrates&8] &r"
 
   # ── General ──
   no-permission:     "&cYou don't have permission to do that."
@@ -106,8 +106,8 @@ messages:
 
   # ── Key ──
   key-not-found:     "&cYou don't have the required key: &e{key}"
-  key-given-sender:  "&aGave &e{amount}x &b{key} &ato &e{player}&a."
-  key-given-receiver: "&aYou received &e{amount}x &b{key}&a!"
+  key-given-sender:  "&aGave &e{amount}x &a{key} &ato &e{player}&a."
+  key-given-receiver: "&aYou received &e{amount}x &a{key}&a!"
   key-insufficient:  "&cInsufficient balance to remove key &e{key}&c."
   mass-open-disabled: "&cMass open is not available for crate &e{crate}&c."
   mass-open-success: "&aSuccessfully opened &e{count}&a crates at once!"
@@ -117,7 +117,7 @@ messages:
   pity-guaranteed:   "&6✦ &ePity triggered! Rare reward guaranteed."
 
   # ── Admin Commands ──
-  pity-info:         "&7Pity of &e{player} &7on &e{crate}&7: &b{current}&7/&b{max}"
+  pity-info:         "&7Pity of &e{player} &7on &e{crate}&7: &a{current}&7/&a{max}"
   pity-reset-done:   "&aPity of &e{player} &aon &e{crate} &ahas been reset."
   setloc-success:    "&aCrate &e{crate} &alocation set to &e{x}&7, &e{y}&7, &e{z} &8[{world}]"
   setloc-no-target:  "&cLook at a block within 5 blocks range."
@@ -126,7 +126,7 @@ messages:
   broadcast-default: "&6✦ &e{player} &7won &6{reward} &7from &e{crate}&7!"
 
   # ── Info Command ──
-  info-header:       "&b&l━━━ Crate Info: {crate} &b&l━━━"
+  info-header:       "&a&l━━━ Crate Info: {crate} &a&l━━━"
   info-id:           "&7ID: &f{crate}"
   info-status-on:    "&7Status: &aEnabled"
   info-status-off:   "&7Status: &cDisabled"
@@ -155,17 +155,17 @@ messages:
   usage-pity:      "&cUsage: /qc pity <player> <crateId>"
   usage-resetpity: "&cUsage: /qc resetpity <player> <crateId>"
   usage-keys:      "&cUsage: /qc keys <player> <keyId>"
-  keys-balance:    "&7Virtual key &e[{key}] &7owned by &e{player}&7: &b{balance}"
+  keys-balance:    "&7Virtual key &e[{key}] &7owned by &e{player}&7: &a{balance}"
 
   # ── List command ──
   list-empty:      "&7No crates registered yet."
-  list-header:     "&b&l━━━ Registered Crates &7({count}) &b&l━━━"
+  list-header:     "&a&l━━━ Registered Crates &7({count}) &a&l━━━"
   list-entry:      "  &8▸ &e{id} &7({name}&7) {status} &8| &7{rewards} rewards &8| &7{keys} key(s)"
   list-status-on:  "&aEnabled"
   list-status-off: "&cDisabled"
 
   # ── Help command ──
-  help-header:           "&b&l━━━ QuantumCrates Help ━━━"
+  help-header:           "&a&l━━━ QuantumCrates Help ━━━"
   help-reload:           "&e/qc reload &7- Reload all crates"
   help-give:             "&e/qc give <player> <key> <amount> &7- Give key to player"
   help-open:             "&e/qc open <crateId> &7- Force open crate (admin)"
@@ -177,38 +177,17 @@ messages:
   help-pity:             "&e/qc pity <player> <crateId> &7- Check pity counter"
   help-resetpity:        "&e/qc resetpity <player> <crateId> &7- Reset pity"
   help-keys-cmd:         "&e/qc keys <player> <keyId> &7- Check virtual key balance"
-  help-controls-header:  "&b&lCrate Block Controls:"
+  help-controls-header:  "&a&lCrate Block Controls:"
   help-ctrl-left:        "  &e[Left Click]         &7→ Preview rewards"
   help-ctrl-right:       "  &e[Right Click]        &7→ Open crate"
   help-ctrl-shift:       "  &e[Shift+Right Click]  &7→ Mass open all keys"
   help-web: "&e/qc web [ip] &7- Open web dashboard (generate magic link)"
 
-# ─────────────────────────────────────────────────────────────
-# GUI MESSAGES
-# Inventory GUI text — item names, lore, button labels, etc.
-# Supports & color codes. Changes apply after /qc reload.
-#
-# Available placeholders:
-#   {crate}     → crate display name
-#   {page}      → current page number
-#   {pages}     → total page count
-#   {chance}    → reward drop chance (e.g. "12.50%")
-#   {rarity}    → reward rarity label
-#   {weight}    → reward weight value
-#   {amount}    → reward amount
-#   {pity}      → current pity count
-#   {pity_max}  → pity threshold
-#   {pity_soft} → soft pity start
-#   {key}       → key ID
-#   {balance}   → player key balance
-#   {needed}    → required key amount
-# ─────────────────────────────────────────────────────────────
 gui-messages:
 
   # ── Preview GUI Title ──
-  # Used when crate has no custom title set in preview config
-  preview-title-default: "&0&lPreview &8» &b{crate}"
-  preview-title-paged:   "&0&lPreview &8» &b{crate} &8[&7{page}&8/&7{pages}&8]"
+  preview-title-default: "&0&lPreview &8» &a{crate}"
+  preview-title-paged:   "&0&lPreview &8» &a{crate} &8[&7{page}&8/&7{pages}&8]"
 
   # ── Navigation Buttons ──
   prev-button-name:    "&e&l◄ Previous"
@@ -219,21 +198,15 @@ gui-messages:
   close-button-lore-1: "&7Click to close the preview."
 
   # ── Reward Item Lore ──
-  # Divider shown between original reward lore and stats
   reward-lore-divider: "&8──────────────────"
-  # Appended after divider when showWeight is true
   reward-weight-line:  "&7Weight: &f{weight}"
-  # Always shown
   reward-rarity-line:  "&7Rarity: {rarity}"
-  # Shown only when amount > 1
   reward-amount-line:  "&7Amount: &fx{amount}"
-  # Shown when reward has commands
   reward-command-tag:  "&7+ &aCommand reward"
-  # Shown when reward is broadcast
   reward-broadcast-tag: "&6✦ &7Server broadcast"
 
   # ── Info Item ──
-  info-item-name: "&b&lCrate Info"
+  info-item-name: "&a&lCrate Info"
   info-divider: "&8──────────────────"
   info-crate-label: "&7Crate: &f{crate}"
   info-total-rewards: "&7Total Rewards: &f{count}"
