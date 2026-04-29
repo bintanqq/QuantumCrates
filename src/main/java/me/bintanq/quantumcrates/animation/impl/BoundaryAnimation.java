@@ -14,10 +14,16 @@ import java.util.List;
 
 public class BoundaryAnimation implements CrateAnimation {
 
-    // 28 border slots of a 54-slot inventory, clockwise
-    private static final int[] BORDER = buildBorder();
-    private static final int   WINNER_BORDER_IDX = 4; // slot index 4 = top row center-ish
-    private static final int   TOTAL_STEPS = 56; // ~2 full laps
+    // Clockwise border, 26 slots — mirrors ExcellentCrates roulette slots
+    private static final int[] BORDER       = buildBorder();
+    private static final int   WINNER_SLOT  = 22; // inner center
+    private static final int   BORDER_LEN   = BORDER.length;
+
+    private static final int[][] SPIN_STEPS = {
+            {12, 1}, {12, 2}, {12, 3}, {12, 4},
+            {5,  6}, {3,  8}, {2, 10}, {1, 12}
+    };
+    private static final int TOTAL_SPINS = computeTotalSpins();
 
     private final QuantumCrates plugin;
 
@@ -27,47 +33,59 @@ public class BoundaryAnimation implements CrateAnimation {
 
     @Override
     public void start(CrateSession session) {
-        List<Reward> pool = session.getCrate().getRewards();
-        Reward winner = session.getResult().getReward();
+        List<Reward> pool   = session.getCrate().getRewards();
+        Reward       winner = session.getResult().getReward();
 
         Inventory inv = Bukkit.createInventory(null, 54,
                 "\u00A70\u00A7l" + colorize(session.getCrate().getDisplayName() != null
                         ? session.getCrate().getDisplayName() : session.getCrate().getId()));
         session.setInventory(inv);
-        AnimationUtil.fillAll(inv, Material.BLACK_STAINED_GLASS_PANE);
-        // Inner fill
-        for (int s : new int[]{10,11,12,13,14,15,16,19,20,21,22,23,24,25,28,29,30,31,32,33,34}) {
-            inv.setItem(s, AnimationUtil.filler(Material.GRAY_STAINED_GLASS_PANE));
-        }
-        // Winner display slot in center
-        inv.setItem(22, AnimationUtil.filler(Material.GRAY_STAINED_GLASS_PANE));
+        AnimationUtil.fillAll(inv);
 
         session.getPlayer().openInventory(inv);
+        session.setTickInterval(SPIN_STEPS[0][1]);
 
-        final int[] step = {0};
-        final int[] headPos = {0}; // index into BORDER
+        final int[] headPos   = {0};
+        final int[] stepIdx   = {0};
+        final int[] stepSpins = {0};
+
 
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (!session.isRunning()) return;
 
-            double progress = (double) step[0] / TOTAL_STEPS;
-            int period = (int) Math.max(1, Math.pow(2, progress * 2.5));
-
-            if (step[0] % period == 0) {
-                // Clear previous head
-                inv.setItem(BORDER[headPos[0]], AnimationUtil.filler(Material.BLACK_STAINED_GLASS_PANE));
-
-                headPos[0] = (headPos[0] + 1) % BORDER.length;
-                Reward shown = AnimationUtil.randomReward(pool);
-                inv.setItem(BORDER[headPos[0]], AnimationUtil.buildDisplayItem(shown));
-                AnimationUtil.playTickSound(session.getPlayer(), progress);
-            }
-
-            if (step[0] >= TOTAL_STEPS) {
-                finish(session, winner, inv, headPos[0]);
+            if (!session.isSpinTime()) {
+                session.advanceTick();
                 return;
             }
-            step[0]++;
+
+            // Clear previous head
+            inv.setItem(BORDER[headPos[0]], AnimationUtil.filler());
+
+            headPos[0] = (headPos[0] + 1) % BORDER_LEN;
+
+            boolean last = session.getSpinCount() >= TOTAL_SPINS - 1;
+            Reward shown = last ? winner : AnimationUtil.randomReward(pool);
+            inv.setItem(BORDER[headPos[0]], AnimationUtil.buildDisplayItem(shown));
+
+            double progress = (double) session.getSpinCount() / TOTAL_SPINS;
+            AnimationUtil.playTickSound(session.getPlayer(), progress);
+
+            session.advanceSpin();
+            stepSpins[0]++;
+
+            if (stepIdx[0] < SPIN_STEPS.length
+                    && stepSpins[0] >= SPIN_STEPS[stepIdx[0]][0]) {
+                stepIdx[0]++;
+                stepSpins[0] = 0;
+                if (stepIdx[0] < SPIN_STEPS.length)
+                    session.setTickInterval(SPIN_STEPS[stepIdx[0]][1]);
+            }
+
+            session.advanceTick();
+
+            if (session.getSpinCount() >= TOTAL_SPINS) {
+                finish(session, winner, inv, headPos[0]);
+            }
         }, 0L, 1L);
 
         session.addTask(task);
@@ -75,10 +93,10 @@ public class BoundaryAnimation implements CrateAnimation {
 
     private void finish(CrateSession session, Reward winner, Inventory inv, int lastPos) {
         if (!session.isRunning() || session.isForfeited()) return;
+        session.setRunning(false);
 
-        // Clear border, show winner in center
         for (int s : BORDER) inv.setItem(s, AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
-        inv.setItem(22, AnimationUtil.buildDisplayItem(winner));
+        inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner));
         AnimationUtil.playWinSound(session.getPlayer());
 
         BukkitTask close = Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -91,17 +109,19 @@ public class BoundaryAnimation implements CrateAnimation {
     }
 
     private static int[] buildBorder() {
-        // Top row: 0-8, right col: 17,26,35,44, bottom row: 53-45, left col: 36,27,18,9
-        int[] b = new int[28];
-        int idx = 0;
-        for (int i = 0; i <= 8;  i++) b[idx++] = i;
-        for (int i = 17; i <= 44; i += 9) b[idx++] = i;
-        for (int i = 53; i >= 45; i--) b[idx++] = i;
-        for (int i = 36; i >= 9;  i -= 9) b[idx++] = i;
+        int[] b = new int[26]; int idx = 0;
+        for (int i = 0;  i <= 8;  i++)      b[idx++] = i;
+        for (int i = 17; i <= 44; i += 9)   b[idx++] = i;
+        for (int i = 53; i >= 45; i--)      b[idx++] = i;
+        for (int i = 36; i >= 9;  i -= 9)   b[idx++] = i;
         return b;
     }
 
-    @Override public void cancel(CrateSession session) { session.cancelAllTasks(); }
+    private static int computeTotalSpins() {
+        int t = 0; for (int[] s : SPIN_STEPS) t += s[0]; return t;
+    }
+
+    @Override public void cancel(CrateSession session)       { session.cancelAllTasks(); }
     @Override public boolean isRunning(CrateSession session) { return session.isRunning(); }
-    private String colorize(String s) { return s.replace("&", "\u00A7"); }
+    private String colorize(String s)                        { return s.replace("&", "\u00A7"); }
 }

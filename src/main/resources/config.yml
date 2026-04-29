@@ -67,7 +67,7 @@ web:
   cors-origins: "*"
   rate-limit: 120
   log-requests: false
-  host: ""
+  hostname: ""
 
 # ─────────────────────────────────────────────────────────────
 # CHAT MESSAGES
@@ -159,6 +159,11 @@ messages:
   web-link-label:    "&7Link &f(valid &e5 minutes&f, single use):"
   web-link-hint:     "&7Click the link above to open the dashboard."
   web-click-button:  "[Open Dashboard]"
+
+  usage-delloc: "&cUsage: /qc delloc <crateId>"
+  delloc-success: "&aCrate &e{crate} &alocation removed."
+  delloc-no-location: "&eCrate &e{crate} &ehas no location set."
+  help-delloc: "&e/qc delloc <crateId> &7- Remove crate location"
 
   # ── Help command ──
   help-header:           "&a&l━━━ QuantumCrates Help ━━━"

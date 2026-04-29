@@ -15,6 +15,8 @@ public final class AnimationUtil {
 
     private AnimationUtil() {}
 
+    public static final Material FILLER_MAT = Material.WHITE_STAINED_GLASS_PANE;
+
     public static ItemStack buildDisplayItem(Reward reward) {
         Material mat = reward.getMaterial() != null
                 ? Material.matchMaterial(reward.getMaterial().toUpperCase())
@@ -38,6 +40,10 @@ public final class AnimationUtil {
         return item;
     }
 
+    public static ItemStack filler() {
+        return filler(FILLER_MAT);
+    }
+
     public static ItemStack filler(Material mat) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
@@ -45,14 +51,15 @@ public final class AnimationUtil {
         return item;
     }
 
+    public static void fillAll(Inventory inv) {
+        fillAll(inv, FILLER_MAT);
+    }
+
     public static void fillAll(Inventory inv, Material mat) {
         ItemStack f = filler(mat);
         for (int i = 0; i < inv.getSize(); i++) inv.setItem(i, f);
     }
 
-    /**
-     * @param progress 0.0 (start) → 1.0 (end)
-     */
     public static void playTickSound(Player player, double progress) {
         float pitch = (float) (0.5 + progress * 1.5);
         pitch = Math.max(0.5f, Math.min(2.0f, pitch));

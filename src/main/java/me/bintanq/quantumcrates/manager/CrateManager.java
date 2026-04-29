@@ -29,6 +29,8 @@ public class CrateManager {
     private final LogManager logManager;
     private final KeyManager keyManager;
 
+    private final Object saveLock = new Object();
+
     private final ConcurrentHashMap<String, Crate> crateRegistry = new ConcurrentHashMap<>();
     private final Set<UUID> openingLock = ConcurrentHashMap.newKeySet();
     private File cratesDir;
@@ -74,11 +76,15 @@ public class CrateManager {
     }
 
     public void saveCrate(Crate crate) {
-        File file = new File(cratesDir, crate.getId() + ".json");
-        try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
-            GsonProvider.getGson().toJson(crate, writer);
-        } catch (IOException e) {
-            Logger.severe("Failed to save crate '" + crate.getId() + "': " + e.getMessage());
+        synchronized (saveLock) {
+            File file = new File(cratesDir, crate.getId() + ".json");
+            try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+                GsonProvider.getGson().toJson(crate, writer);
+            } catch (IOException e) {
+                Logger.severe("Failed to save crate '" + crate.getId() + "': " + e.getMessage());
+                return;
+            }
+            crateRegistry.put(crate.getId(), crate);
         }
     }
 
@@ -375,16 +381,17 @@ public class CrateManager {
     public Map<String, Crate> getCrateRegistry() { return Collections.unmodifiableMap(crateRegistry); }
 
     public void registerCrate(Crate crate) {
-        crateRegistry.put(crate.getId(), crate);
         saveCrate(crate);
         if (plugin.getHologramManager() != null) plugin.getHologramManager().spawnHologram(crate);
         if (plugin.getParticleManager()  != null) plugin.getParticleManager().startIdleParticles(crate);
     }
 
     public void removeCrate(String id) {
-        crateRegistry.remove(id);
-        File file = new File(cratesDir, id + ".json");
-        if (file.exists()) file.delete();
+        synchronized (saveLock) {
+            crateRegistry.remove(id);
+            File file = new File(cratesDir, id + ".json");
+            if (file.exists()) file.delete();
+        }
         if (plugin.getHologramManager() != null) plugin.getHologramManager().removeHologram(id);
         if (plugin.getParticleManager()  != null) plugin.getParticleManager().stopIdleParticles(id);
     }

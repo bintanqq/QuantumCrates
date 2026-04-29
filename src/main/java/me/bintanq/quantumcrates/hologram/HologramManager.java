@@ -63,6 +63,6 @@ public class HologramManager {
     private Location toLocation(Crate.SerializableLocation sl) {
         World world = plugin.getServer().getWorld(sl.world);
         if (world == null) { Logger.warn("Hologram world not found: " + sl.world); return null; }
-        return new Location(world, sl.x, sl.y + 2.5, sl.z, sl.yaw, sl.pitch);
+        return new Location(world, sl.x + 0.5, sl.y + 2.5, sl.z + 0.5, sl.yaw, sl.pitch);
     }
 }

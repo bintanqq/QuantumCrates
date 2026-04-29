@@ -24,33 +24,26 @@ public class AnimationManager {
         return sessions.containsKey(uuid);
     }
 
+    public CrateSession getSession(UUID uuid) {
+        return sessions.get(uuid);
+    }
+
     public void startAnimation(Player player, Crate crate, RewardResult result) {
         if (sessions.containsKey(player.getUniqueId())) {
             Logger.warn("Player " + player.getName() + " already has an active crate session.");
             return;
         }
-
         CrateSession session = new CrateSession(player, crate, result);
         sessions.put(player.getUniqueId(), session);
-
-        CrateAnimation animation = resolveAnimation(crate);
         session.setRunning(true);
-        animation.start(session);
+        resolveAnimation(crate).start(session);
     }
 
-    // Called by GUIListener on InventoryCloseEvent
+
     public void onInventoryClose(Player player) {
-        CrateSession session = sessions.remove(player.getUniqueId());
-        if (session == null) return;
-        if (session.isRunning()) {
-            session.setForfeited(true);
-            session.setRunning(false);
-            session.cancelAllTasks();
-            Logger.debug("Session forfeited for " + player.getName());
-        }
     }
 
-    // Called by animation impl when it finishes naturally
+    /** Called by animation impl when it finishes naturally. */
     public void completeSession(CrateSession session) {
         sessions.remove(session.getPlayer().getUniqueId());
         session.setRunning(false);
@@ -69,9 +62,9 @@ public class AnimationManager {
 
     public void shutdown() {
         sessions.values().forEach(s -> {
-            s.setForfeited(true);
             s.setRunning(false);
             s.cancelAllTasks();
+            plugin.getCrateManager().deliverRewardPublic(s.getPlayer(), s.getResult());
         });
         sessions.clear();
     }

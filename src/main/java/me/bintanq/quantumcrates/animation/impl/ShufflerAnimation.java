@@ -14,8 +14,16 @@ import java.util.List;
 
 public class ShufflerAnimation implements CrateAnimation {
 
-    private static final int CENTER_SLOT  = 22;
-    private static final int TOTAL_CYCLES = 30;
+    private static final int CENTER_SLOT = 13;
+    private static final int INV_SIZE    = 27;
+
+    private static final int[][] SPIN_STEPS = {
+            {12, 1}, {12, 2}, {12, 3}, {12, 4},
+            {5,  6}, {3,  8}, {2, 10}, {1, 12}
+    };
+    private static final int TOTAL_SPINS = computeTotalSpins();
+
+    private static final int[] RING = {3, 4, 5, 12, 14, 21, 22, 23};
 
     private final QuantumCrates plugin;
 
@@ -25,44 +33,53 @@ public class ShufflerAnimation implements CrateAnimation {
 
     @Override
     public void start(CrateSession session) {
-        List<Reward> pool = session.getCrate().getRewards();
-        Reward winner = session.getResult().getReward();
+        List<Reward> pool   = session.getCrate().getRewards();
+        Reward       winner = session.getResult().getReward();
 
-        Inventory inv = Bukkit.createInventory(null, 54,
+        Inventory inv = Bukkit.createInventory(null, INV_SIZE,
                 "\u00A70\u00A7l" + colorize(session.getCrate().getDisplayName() != null
                         ? session.getCrate().getDisplayName() : session.getCrate().getId()));
         session.setInventory(inv);
-        AnimationUtil.fillAll(inv, Material.GRAY_STAINED_GLASS_PANE);
-
-        // Highlight ring around center
-        for (int s : new int[]{12, 13, 14, 21, 23, 30, 31, 32}) {
-            inv.setItem(s, AnimationUtil.filler(Material.BLACK_STAINED_GLASS_PANE));
-        }
+        AnimationUtil.fillAll(inv);
+        for (int s : RING) inv.setItem(s, AnimationUtil.filler(Material.YELLOW_STAINED_GLASS_PANE));
 
         session.getPlayer().openInventory(inv);
+        session.setTickInterval(SPIN_STEPS[0][1]);
 
-        final int[] cycle = {0};
+        final int[] stepIdx   = {0};
+        final int[] stepSpins = {0};
 
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (!session.isRunning()) return;
 
-            double progress = (double) cycle[0] / TOTAL_CYCLES;
-            int period = (int) Math.max(1, progress * progress * 8);
-
-            if (cycle[0] % Math.max(1, period) == 0) {
-                Reward shown = cycle[0] >= TOTAL_CYCLES - 1
-                        ? winner
-                        : AnimationUtil.randomReward(pool);
-                inv.setItem(CENTER_SLOT, AnimationUtil.buildDisplayItem(shown));
-                AnimationUtil.playTickSound(session.getPlayer(), progress);
-            }
-
-            if (cycle[0] >= TOTAL_CYCLES) {
-                finish(session, winner, inv);
+            if (!session.isSpinTime()) {
+                session.advanceTick();
                 return;
             }
 
-            cycle[0]++;
+            boolean last = session.getSpinCount() >= TOTAL_SPINS - 1;
+            Reward shown = last ? winner : AnimationUtil.randomReward(pool);
+            inv.setItem(CENTER_SLOT, AnimationUtil.buildDisplayItem(shown));
+
+            double progress = (double) session.getSpinCount() / TOTAL_SPINS;
+            AnimationUtil.playTickSound(session.getPlayer(), progress);
+
+            session.advanceSpin();
+            stepSpins[0]++;
+
+            if (stepIdx[0] < SPIN_STEPS.length
+                    && stepSpins[0] >= SPIN_STEPS[stepIdx[0]][0]) {
+                stepIdx[0]++;
+                stepSpins[0] = 0;
+                if (stepIdx[0] < SPIN_STEPS.length)
+                    session.setTickInterval(SPIN_STEPS[stepIdx[0]][1]);
+            }
+
+            session.advanceTick();
+
+            if (session.getSpinCount() >= TOTAL_SPINS) {
+                finish(session, winner, inv);
+            }
         }, 0L, 1L);
 
         session.addTask(task);
@@ -70,11 +87,12 @@ public class ShufflerAnimation implements CrateAnimation {
 
     private void finish(CrateSession session, Reward winner, Inventory inv) {
         if (!session.isRunning() || session.isForfeited()) return;
-        inv.setItem(22, AnimationUtil.buildDisplayItem(winner));
-        for (int s : new int[]{12, 13, 14, 21, 23, 30, 31, 32}) {
-            inv.setItem(s, AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
-        }
+        session.setRunning(false);
+
+        inv.setItem(CENTER_SLOT, AnimationUtil.buildDisplayItem(winner));
+        for (int s : RING) inv.setItem(s, AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
         AnimationUtil.playWinSound(session.getPlayer());
+
         BukkitTask close = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (session.isForfeited()) return;
             session.getPlayer().closeInventory();
@@ -84,7 +102,11 @@ public class ShufflerAnimation implements CrateAnimation {
         session.addTask(close);
     }
 
-    @Override public void cancel(CrateSession session) { session.cancelAllTasks(); }
+    private static int computeTotalSpins() {
+        int t = 0; for (int[] s : SPIN_STEPS) t += s[0]; return t;
+    }
+
+    @Override public void cancel(CrateSession session)       { session.cancelAllTasks(); }
     @Override public boolean isRunning(CrateSession session) { return session.isRunning(); }
-    private String colorize(String s) { return s.replace("&", "\u00A7"); }
+    private String colorize(String s)                        { return s.replace("&", "\u00A7"); }
 }

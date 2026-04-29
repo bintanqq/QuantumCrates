@@ -404,7 +404,7 @@ const CrateSettingsModal = {
             <div class="section-label" style="margin-bottom:7px">IDLE PARTICLES</div>
             <div class="field-row" style="margin-bottom:7px">
               <div class="field-group"><label class="field-label">Type</label>
-                <select class="field-input" id="csIdleType">${['RING','HELIX','SPHERE','SPIRAL','RAIN','NONE'].map(t=>`<option value="${t}" ${(crate.idleAnimation?.type||'RING')===t?'selected':''}>${t}</option>`).join('')}</select>
+                <select class="field-input" id="csIdleType">${['HELIX','SPIRAL','SPHERE','PULSAR','BEACON','TORNADO', 'VORTEX', 'SIMPLE', 'NONE'].map(t=>`<option value="${t}" ${(crate.idleAnimation?.type||'HELIX')===t?'selected':''}>${t}</option>`).join('')}</select>
               </div>
               <div class="field-group"><label class="field-label">Particle</label>
                 <select class="field-input" id="csIdleParticle">${['HAPPY_VILLAGER','FLAME','ENCHANT','END_ROD','WITCH','TOTEM_OF_UNDYING','DRAGON_BREATH','SOUL_FIRE_FLAME','CRIMSON_SPORE','GLOW','SNOWFLAKE'].map(p=>`<option value="${p}" ${(crate.idleAnimation?.particle||'HAPPY_VILLAGER')===p?'selected':''}>${p}</option>`).join('')}</select>

@@ -6,18 +6,18 @@ import me.bintanq.quantumcrates.animation.CrateAnimation;
 import me.bintanq.quantumcrates.animation.CrateSession;
 import me.bintanq.quantumcrates.model.reward.Reward;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class FlickerAnimation implements CrateAnimation {
 
-    private static final int   WINNER_SLOT  = 22;
-    private static final int   TOTAL_TICKS  = 60;
-    private static final int   FLICKER_SLOTS = 54;
+    private static final int WINNER_SLOT = 22;
+    private static final int INV_SIZE    = 54;
+    private static final long TICK_INTERVAL = 2L; // mirrors Enclosing piston sound timing
 
     private final QuantumCrates plugin;
 
@@ -27,54 +27,62 @@ public class FlickerAnimation implements CrateAnimation {
 
     @Override
     public void start(CrateSession session) {
-        List<Reward> pool = session.getCrate().getRewards();
-        Reward winner = session.getResult().getReward();
+        List<Reward> pool   = session.getCrate().getRewards();
+        Reward       winner = session.getResult().getReward();
 
-        Inventory inv = Bukkit.createInventory(null, 54,
+        Inventory inv = Bukkit.createInventory(null, INV_SIZE,
                 "\u00A70\u00A7l" + colorize(session.getCrate().getDisplayName() != null
                         ? session.getCrate().getDisplayName() : session.getCrate().getId()));
         session.setInventory(inv);
-        AnimationUtil.fillAll(inv, Material.BLACK_STAINED_GLASS_PANE);
+
+        // Phase 1: fill ALL slots with random rewards
+        for (int i = 0; i < INV_SIZE; i++) {
+            inv.setItem(i, AnimationUtil.buildDisplayItem(AnimationUtil.randomReward(pool)));
+        }
+        // Winner always visible at center
+        inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner));
+
         session.getPlayer().openInventory(inv);
 
-        final int[] tick = {0};
-        ThreadLocalRandom rng = ThreadLocalRandom.current();
+        // Build shuffled slot list (all except winner) — mirrors Enclosing inward clearing
+        List<Integer> slotsToReveal = new ArrayList<>(INV_SIZE - 1);
+        for (int i = 0; i < INV_SIZE; i++) {
+            if (i != WINNER_SLOT) slotsToReveal.add(i);
+        }
+        Collections.shuffle(slotsToReveal);
+
+        final int   total  = slotsToReveal.size();
+        final int[] cursor = {0};
 
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (!session.isRunning()) return;
 
-            double progress = (double) tick[0] / TOTAL_TICKS;
-
-            // How many slots to flicker: decreases as progress increases (converges)
-            int flickerCount = (int) Math.max(1, FLICKER_SLOTS * (1.0 - progress * progress));
-
-            // Clear all then randomly scatter rewards
-            AnimationUtil.fillAll(inv, Material.BLACK_STAINED_GLASS_PANE);
-            for (int i = 0; i < flickerCount; i++) {
-                int slot = rng.nextInt(FLICKER_SLOTS);
-                inv.setItem(slot, AnimationUtil.buildDisplayItem(AnimationUtil.randomReward(pool)));
-            }
-
-            // In the last 20% of ticks, force winner into center progressively
-            if (progress >= 0.8) {
-                inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner));
-            }
-
-            AnimationUtil.playTickSound(session.getPlayer(), progress);
-
-            if (tick[0] >= TOTAL_TICKS) {
+            if (cursor[0] >= total) {
                 finish(session, winner, inv);
                 return;
             }
-            tick[0]++;
-        }, 0L, 1L);
+
+            // Clear one slot per tick (mirrors Enclosing single piston per step)
+            int slot = slotsToReveal.get(cursor[0]);
+            inv.setItem(slot, AnimationUtil.filler());
+            cursor[0]++;
+
+            // Always keep winner visible
+            inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner));
+
+            double progress = (double) cursor[0] / total;
+            AnimationUtil.playTickSound(session.getPlayer(), progress);
+
+        }, 0L, TICK_INTERVAL);
 
         session.addTask(task);
     }
 
     private void finish(CrateSession session, Reward winner, Inventory inv) {
         if (!session.isRunning() || session.isForfeited()) return;
-        AnimationUtil.fillAll(inv, Material.BLACK_STAINED_GLASS_PANE);
+        session.setRunning(false);
+
+        AnimationUtil.fillAll(inv);
         inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner));
         AnimationUtil.playWinSound(session.getPlayer());
 
@@ -87,7 +95,7 @@ public class FlickerAnimation implements CrateAnimation {
         session.addTask(close);
     }
 
-    @Override public void cancel(CrateSession session) { session.cancelAllTasks(); }
+    @Override public void cancel(CrateSession session)       { session.cancelAllTasks(); }
     @Override public boolean isRunning(CrateSession session) { return session.isRunning(); }
-    private String colorize(String s) { return s.replace("&", "\u00A7"); }
+    private String colorize(String s)                        { return s.replace("&", "\u00A7"); }
 }

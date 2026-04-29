@@ -40,6 +40,7 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
             case "info"      -> cmdInfo(sender, args);
             case "list"      -> cmdList(sender);
             case "setloc"    -> cmdSetLoc(sender, args);
+            case "delloc" -> cmdDelLoc(sender, args);
             case "pity"      -> cmdPity(sender, args);
             case "resetpity" -> cmdResetPity(sender, args);
             case "keys"      -> cmdCheckKeys(sender, args);
@@ -187,6 +188,27 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
                 "{world}", loc.getWorld().getName());
     }
 
+    private void cmdDelLoc(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player)) { MessageManager.sendPlayerOnly(sender); return; }
+        if (!sender.hasPermission("quantumcrates.admin")) { MessageManager.sendNoPermission(sender); return; }
+        if (args.length < 2) { MessageManager.send(sender, "usage-delloc"); return; }
+
+        Crate crate = crateManager().getCrate(args[1]);
+        if (crate == null) { MessageManager.sendCrateNotFound(sender, args[1]); return; }
+        if (crate.getLocation() == null) {
+            MessageManager.send(sender, "delloc-no-location", "{crate}", crate.getId());
+            return;
+        }
+
+        crate.setLocation(null);
+        crateManager().saveCrate(crate);
+
+        if (plugin.getHologramManager() != null) plugin.getHologramManager().removeHologram(crate.getId());
+        if (plugin.getParticleManager()  != null) plugin.getParticleManager().stopIdleParticles(crate.getId());
+
+        MessageManager.send(sender, "delloc-success", "{crate}", crate.getId());
+    }
+
     private void cmdPity(CommandSender sender, String[] args) {
         if (!sender.hasPermission("quantumcrates.admin")) { MessageManager.sendNoPermission(sender); return; }
         if (args.length < 3) { MessageManager.send(sender, "usage-pity"); return; }
@@ -244,7 +266,7 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
                     "info","list","setloc","pity","resetpity","keys","web"), args[0]);
 
         return switch (args[0].toLowerCase()) {
-            case "open","massopen","preview","info","setloc" ->
+            case "open","massopen","preview","info","setloc", "delloc" ->
                     args.length == 2 ? filter(crateIds(), args[1]) : List.of();
             case "give","pity","resetpity","keys" ->
                     args.length == 2 ? filter(onlinePlayers(), args[1])
