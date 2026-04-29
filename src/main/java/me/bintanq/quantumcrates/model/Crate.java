@@ -92,6 +92,9 @@ public class Crate {
         public int getDensity()     { return density; }
     }
 
+    @SerializedName("guiAnimation")
+    private GuiAnimationType guiAnimation = GuiAnimationType.ROULETTE;
+
     public AnimationConfig getIdleAnimation() { return idleAnimation != null ? idleAnimation : new AnimationConfig(); }
     public AnimationConfig getOpenAnimation() { return openAnimation != null ? openAnimation : new AnimationConfig(); }
 
@@ -120,6 +123,10 @@ public class Crate {
         public String getKeyId() { return keyId; }
         public int getAmount() { return amount; }
         public KeyType getType() { return type; }
+    }
+
+    public enum GuiAnimationType {
+        ROULETTE, SHUFFLER, BOUNDARY, TRIPLE_SPIN, FLICKER
     }
 
     public enum KeyType {
@@ -239,6 +246,7 @@ public class Crate {
 
     /* ─────────────────────── Getters / Setters ─────────────────────── */
 
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
@@ -262,6 +270,9 @@ public class Crate {
     public PreviewConfig getPreview() { return preview != null ? preview : new PreviewConfig(); }
     public boolean isMassOpenEnabled() { return massOpenEnabled; }
     public int getMassOpenLimit() { return massOpenLimit; }
+
+    public GuiAnimationType getGuiAnimation() { return guiAnimation != null ? guiAnimation : GuiAnimationType.ROULETTE; }
+    public void setGuiAnimation(GuiAnimationType guiAnimation) { this.guiAnimation = guiAnimation; }
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }

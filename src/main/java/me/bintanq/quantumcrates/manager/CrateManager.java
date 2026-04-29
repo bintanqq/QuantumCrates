@@ -87,6 +87,8 @@ public class CrateManager {
     }
 
     public OpenResult canOpen(Player player, String crateId) {
+        if (plugin.getAnimationManager().hasSession(player.getUniqueId()))
+            return OpenResult.ALREADY_OPENING;
         Crate crate = crateRegistry.get(crateId);
         if (crate == null) return OpenResult.NOT_FOUND;
         if (!crate.isEnabled()) return OpenResult.DISABLED;
@@ -199,6 +201,7 @@ public class CrateManager {
             if (crate.getCooldownMs() > 0)
                 playerDataManager.setLastOpen(player.getUniqueId(), crateId);
 
+            plugin.getAnimationManager().startAnimation(player, crate, result);
             deliverReward(player, result);
 
             if (plugin.getParticleManager() != null)
@@ -245,6 +248,11 @@ public class CrateManager {
         MessageManager.send(player, "reward-received", "{reward}", result.getReward().getDisplayName());
     }
 
+    public void deliverRewardPublic(Player player, RewardResult result) {
+        deliverReward(player, result);
+    }
+
+
     private void sendOpenResultFeedback(Player player, OpenResult result, String crateId) {
         switch (result) {
             case NOT_FOUND   -> MessageManager.send(player, "crate-not-found", "{crate}", crateId);
@@ -283,7 +291,7 @@ public class CrateManager {
               "displayName": "&b&lExample Crate",
               "hologramLines": ["&b&lEXAMPLE CRATE", "&7Left-click to preview!", "&7Right-click to open!"],
               "requiredKeys": [
-                { "keyId": "example_key", "amount": 1, "type": "VIRTUAL" }
+                { "keyId": "example_key", "amount": 1, "type": "VIRTUAL" },
               ],
               "rewards": [
                 {
@@ -343,7 +351,8 @@ public class CrateManager {
               },
               "massOpenEnabled": true,
               "massOpenLimit": 64,
-              "enabled": true
+              "enabled": true,
+              "guiAnimation": "ROULETTE"
             }
             """.formatted(lowestRarity, midRarity, pityMinRarity, highestRarity, pityMinRarity);
 

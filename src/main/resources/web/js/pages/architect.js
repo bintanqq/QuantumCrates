@@ -410,11 +410,46 @@ const CrateSettingsModal = {
             <div style="flex:1" id="csEnabledToggle"></div>
             <div style="flex:1" id="csMassToggle"></div>
           </div>
+
           <div style="border-top:1px solid var(--border);padding-top:10px">
-            <div class="section-label" style="margin-bottom:7px">ANIMATIONS</div>
-            <div class="field-row">
-              <div class="field-group"><label class="field-label">Idle Type</label><select class="field-input" id="csIdleType">${['RING','HELIX','SPHERE','SPIRAL','RAIN','NONE'].map(t=>`<option value="${t}" ${(crate.idleAnimation?.type||'RING')===t?'selected':''}>${t}</option>`).join('')}</select></div>
-              <div class="field-group"><label class="field-label">Open Type</label><select class="field-input" id="csOpenType">${['RING','HELIX','SPHERE','SPIRAL','RAIN','NONE'].map(t=>`<option value="${t}" ${(crate.openAnimation?.type||'RING')===t?'selected':''}>${t}</option>`).join('')}</select></div>
+            <div class="section-label" style="margin-bottom:7px">IDLE PARTICLES</div>
+            <div class="field-row" style="margin-bottom:7px">
+              <div class="field-group"><label class="field-label">Type</label>
+                <select class="field-input" id="csIdleType">${['RING','HELIX','SPHERE','SPIRAL','RAIN','NONE'].map(t=>`<option value="${t}" ${(crate.idleAnimation?.type||'RING')===t?'selected':''}>${t}</option>`).join('')}</select>
+              </div>
+              <div class="field-group"><label class="field-label">Particle</label>
+                <select class="field-input" id="csIdleParticle">${['HAPPY_VILLAGER','FLAME','ENCHANT','END_ROD','WITCH','TOTEM_OF_UNDYING','DRAGON_BREATH','SOUL_FIRE_FLAME','CRIMSON_SPORE','GLOW','SNOWFLAKE'].map(p=>`<option value="${p}" ${(crate.idleAnimation?.particle||'HAPPY_VILLAGER')===p?'selected':''}>${p}</option>`).join('')}</select>
+              </div>
+            </div>
+            <div class="field-row-3">
+              <div class="field-group"><label class="field-label">Speed</label><input class="field-input" type="number" id="csIdleSpeed" value="${crate.idleAnimation?.speed??1.0}" min="0.1" max="10" step="0.1"/></div>
+              <div class="field-group"><label class="field-label">Radius</label><input class="field-input" type="number" id="csIdleRadius" value="${crate.idleAnimation?.radius??1.0}" min="0.1" max="5" step="0.1"/></div>
+              <div class="field-group"><label class="field-label">Density</label><input class="field-input" type="number" id="csIdleDensity" value="${crate.idleAnimation?.density??8}" min="1" max="32" step="1"/></div>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--border);padding-top:10px">
+            <div class="section-label" style="margin-bottom:7px">OPEN PARTICLES</div>
+            <div class="field-row" style="margin-bottom:7px">
+              <div class="field-group"><label class="field-label">Type</label>
+                <select class="field-input" id="csOpenType">${['RING','HELIX','SPHERE','SPIRAL','RAIN','NONE'].map(t=>`<option value="${t}" ${(crate.openAnimation?.type||'RING')===t?'selected':''}>${t}</option>`).join('')}</select>
+              </div>
+              <div class="field-group"><label class="field-label">Particle</label>
+                <select class="field-input" id="csOpenParticle">${['HAPPY_VILLAGER','FLAME','ENCHANT','END_ROD','WITCH','TOTEM_OF_UNDYING','DRAGON_BREATH','SOUL_FIRE_FLAME','CRIMSON_SPORE','GLOW','SNOWFLAKE'].map(p=>`<option value="${p}" ${(crate.openAnimation?.particle||'HAPPY_VILLAGER')===p?'selected':''}>${p}</option>`).join('')}</select>
+              </div>
+            </div>
+            <div class="field-row-3">
+              <div class="field-group"><label class="field-label">Speed</label><input class="field-input" type="number" id="csOpenSpeed" value="${crate.openAnimation?.speed??1.0}" min="0.1" max="10" step="0.1"/></div>
+              <div class="field-group"><label class="field-label">Radius</label><input class="field-input" type="number" id="csOpenRadius" value="${crate.openAnimation?.radius??1.0}" min="0.1" max="5" step="0.1"/></div>
+              <div class="field-group"><label class="field-label">Density</label><input class="field-input" type="number" id="csOpenDensity" value="${crate.openAnimation?.density??8}" min="1" max="32" step="1"/></div>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--border);padding-top:10px">
+            <div class="section-label" style="margin-bottom:7px">GUI ANIMATION</div>
+            <div class="field-group">
+              <label class="field-label">Opening Animation Style</label>
+              <select class="field-input" id="csGuiAnimation">${['ROULETTE','SHUFFLER','BOUNDARY','TRIPLE_SPIN','FLICKER'].map(t=>`<option value="${t}" ${(crate.guiAnimation||'ROULETTE')===t?'selected':''}>${t.replace(/_/g,' ')}</option>`).join('')}</select>
             </div>
           </div>
         </div>
@@ -426,19 +461,34 @@ const CrateSettingsModal = {
     `, 'modal-lg');
     Utils.qs('#csEnabledToggle').appendChild(ToggleSwitch('Crate Enabled', crate.enabled !== false, v => { crate.enabled = v; }));
     Utils.qs('#csMassToggle').appendChild(ToggleSwitch('Mass Open Enabled', crate.massOpenEnabled !== false, v => { crate.massOpenEnabled = v; }));
-    this._crate = crate; this._onSave = onSave;
+    this._crate = crate;
+    this._onSave = onSave;
   },
+
   save() {
     const c = this._crate;
-    c.id = Utils.qs('#csId').value.trim();
-    c.displayName = Utils.qs('#csName').value;
-    c.cooldownMs  = parseInt(Utils.qs('#csCooldown').value)||0;
-    c.massOpenLimit = parseInt(Utils.qs('#csMassLimit').value)||-1;
-    if (!c.idleAnimation) c.idleAnimation={};
-    if (!c.openAnimation) c.openAnimation={};
-    c.idleAnimation.type = Utils.qs('#csIdleType').value;
-    c.openAnimation.type = Utils.qs('#csOpenType').value;
-    this._onSave?.(); Modal.close(); toast('Crate settings saved', 'success');
+    c.id            = Utils.qs('#csId').value.trim();
+    c.displayName   = Utils.qs('#csName').value;
+    c.cooldownMs    = parseInt(Utils.qs('#csCooldown').value) || 0;
+    c.massOpenLimit = parseInt(Utils.qs('#csMassLimit').value) ?? -1;
+    c.idleAnimation = {
+      type:     Utils.qs('#csIdleType').value,
+      particle: Utils.qs('#csIdleParticle').value,
+      speed:    parseFloat(Utils.qs('#csIdleSpeed').value)  || 1.0,
+      radius:   parseFloat(Utils.qs('#csIdleRadius').value) || 1.0,
+      density:  parseInt(Utils.qs('#csIdleDensity').value)  || 8,
+    };
+    c.openAnimation = {
+      type:     Utils.qs('#csOpenType').value,
+      particle: Utils.qs('#csOpenParticle').value,
+      speed:    parseFloat(Utils.qs('#csOpenSpeed').value)  || 1.0,
+      radius:   parseFloat(Utils.qs('#csOpenRadius').value) || 1.0,
+      density:  parseInt(Utils.qs('#csOpenDensity').value)  || 8,
+    };
+    c.guiAnimation = Utils.qs('#csGuiAnimation').value;
+    this._onSave?.();
+    Modal.close();
+    toast('Crate settings saved', 'success');
   },
 };
 

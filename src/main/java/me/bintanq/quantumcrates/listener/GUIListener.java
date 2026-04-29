@@ -128,4 +128,10 @@ public class GUIListener implements Listener {
         }
         return null;
     }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) return;
+        plugin.getAnimationManager().onInventoryClose(player);
+    }
 }

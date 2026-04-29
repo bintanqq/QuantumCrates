@@ -1,5 +1,6 @@
 package me.bintanq.quantumcrates;
 
+import me.bintanq.quantumcrates.animation.AnimationManager;
 import me.bintanq.quantumcrates.command.QuantumCratesCommand;
 import me.bintanq.quantumcrates.database.DatabaseManager;
 import me.bintanq.quantumcrates.database.impl.MySQLDatabase;
@@ -45,6 +46,7 @@ public final class QuantumCrates extends JavaPlugin {
     private ParticleManager particleManager;
     private WebServer webServer;
     private StatsScheduler statsScheduler;
+    private AnimationManager animationManager;
 
     @Override
     public void onEnable() {
@@ -74,6 +76,8 @@ public final class QuantumCrates extends JavaPlugin {
         }
 
         initManagers();
+
+        animationManager = new AnimationManager(this);
 
         crateManager.loadAllCrates();
         hookManager.registerAll();
@@ -121,6 +125,7 @@ public final class QuantumCrates extends JavaPlugin {
         ifNotNull(crateManager,     CrateManager::shutdown);
         ifNotNull(playerDataManager,PlayerDataManager::flushAll);
         ifNotNull(logManager,       LogManager::flushQueue);
+        ifNotNull(animationManager, AnimationManager::shutdown);
 
         if (asyncExecutor != null) asyncExecutor.shutdown();
         if (databaseManager != null) databaseManager.close();
@@ -175,4 +180,5 @@ public final class QuantumCrates extends JavaPlugin {
     public ParticleManager getParticleManager()        { return particleManager; }
     public WebServer getWebServer()                    { return webServer; }
     public StatsScheduler getStatsScheduler()          { return statsScheduler; }
+    public AnimationManager getAnimationManager() { return animationManager; }
 }
