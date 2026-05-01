@@ -571,13 +571,21 @@ public class WebServer {
                         "online",        true,
                         "onlinePlayers", Bukkit.getOnlinePlayers().size(),
                         "maxPlayers",    Bukkit.getMaxPlayers(),
-                        "tps",           Math.round(Bukkit.getTPS()[0] * 100.0) / 100.0,
+                        "tps", Math.round(getTpsCompat() * 100.0) / 100.0,
                         "version",       Bukkit.getVersion(),
                         "crateCount",    plugin.getCrateManager().getAllCrates().size(),
                         "rarityCount",   plugin.getRarityManager().getAll().size(),
                         "timestamp",     System.currentTimeMillis()
                 )))
         );
+    }
+
+    private double getTpsCompat() {
+        try {
+            return Bukkit.getTPS()[0];
+        } catch (NoSuchMethodError e) {
+            return 20.0;
+        }
     }
 
     private void registerWebConfigRoute() {

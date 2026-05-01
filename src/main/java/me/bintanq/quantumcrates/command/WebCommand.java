@@ -67,19 +67,19 @@ public class WebCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendClickableLink(Player player, String url) {
-        var msg = net.kyori.adventure.text.Component.text()
-                .append(net.kyori.adventure.text.Component.text("  \u25ba ")
-                        .color(net.kyori.adventure.text.format.NamedTextColor.DARK_AQUA))
-                .append(net.kyori.adventure.text.Component.text(
-                                MessageManager.getRaw("web-click-button").replaceAll("\u00a7.", ""))
-                        .color(net.kyori.adventure.text.format.NamedTextColor.AQUA)
-                        .decorate(net.kyori.adventure.text.format.TextDecoration.BOLD)
-                        .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(url))
-                        .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
-                                net.kyori.adventure.text.Component.text(url)
-                                        .color(net.kyori.adventure.text.format.NamedTextColor.GRAY))))
-                .build();
-        player.sendMessage(msg);
+        try {
+            var msg = net.kyori.adventure.text.Component.text()
+                    .append(net.kyori.adventure.text.Component.text("  ► "))
+                    .append(net.kyori.adventure.text.Component.text("[Open Dashboard]")
+                            .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(url))
+                            .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
+                                    net.kyori.adventure.text.Component.text(url))))
+                    .build();
+            player.sendMessage(msg);
+        } catch (NoClassDefFoundError | Exception e) {
+            player.sendMessage(MessageManager.color("&a[Dashboard] &7" + url));
+            player.sendMessage(MessageManager.color("&7Click Link Above."));
+        }
     }
 
     @Override

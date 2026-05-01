@@ -19,7 +19,12 @@ public class StatsScheduler {
 
     public void start() {
         task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            double tps = Bukkit.getTPS()[0];
+            double tps;
+            try {
+                tps = Bukkit.getTPS()[0];
+            } catch (NoSuchMethodError e) {
+                tps = 20.0;
+            }
             int online  = Bukkit.getOnlinePlayers().size();
             WebSocketBridge.getInstance().broadcastServerStats(online, tps, openingsToday.get());
         }, 600L, 600L);
@@ -28,6 +33,8 @@ public class StatsScheduler {
         dailyResetTask = Bukkit.getScheduler().runTaskTimer(plugin, this::resetDailyCounter,
                 oneDayTicks, oneDayTicks);
     }
+
+
 
     public void stop() {
         if (task != null) task.cancel();

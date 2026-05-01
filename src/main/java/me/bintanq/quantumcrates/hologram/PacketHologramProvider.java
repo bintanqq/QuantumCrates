@@ -88,17 +88,17 @@ public class PacketHologramProvider implements HologramProvider {
     }
 
     private ArmorStand spawnStand(Location location, String text) {
-        ArmorStand stand = (ArmorStand) location.getWorld().spawnEntity(location, EntityType.ARMOR_STAND);
-        stand.setVisible(false);
-        stand.setGravity(false);
-        stand.setCanPickupItems(false);
-        stand.setCustomName(text);
-        stand.setCustomNameVisible(true);
-        stand.setSmall(true);
-        stand.setArms(false);
-        stand.setBasePlate(false);
-        stand.setPersistent(false);
-        stand.setInvulnerable(true);
-        return stand;
+        return location.getWorld().spawn(location, ArmorStand.class, as -> {
+            as.setVisible(false);
+            as.setGravity(false);
+            as.setCanPickupItems(false);
+            as.setCustomName(text);
+            as.setCustomNameVisible(true);
+            as.setSmall(true);
+            as.setArms(false);
+            as.setBasePlate(false);
+            as.setPersistent(false);
+            as.setInvulnerable(true);
+        });
     }
 }
