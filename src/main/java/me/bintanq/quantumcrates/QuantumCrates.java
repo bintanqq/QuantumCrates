@@ -138,13 +138,12 @@ public final class QuantumCrates extends JavaPlugin {
         if (asyncExecutor != null) {
             asyncExecutor.shutdown();
             try {
-                if (!((java.util.concurrent.ExecutorService) asyncExecutor)
-                        .awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                if (!asyncExecutor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
                     Logger.warn("Async executor did not terminate in time, forcing shutdown.");
-                    ((java.util.concurrent.ExecutorService) asyncExecutor).shutdownNow();
+                    asyncExecutor.shutdownNow();
                 }
             } catch (InterruptedException e) {
-                ((java.util.concurrent.ExecutorService) asyncExecutor).shutdownNow();
+                asyncExecutor.shutdownNow();
                 Thread.currentThread().interrupt();
             }
         }

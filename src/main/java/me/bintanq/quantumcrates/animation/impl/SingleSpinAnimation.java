@@ -14,10 +14,6 @@ import java.util.List;
 
 public class SingleSpinAnimation implements CrateAnimation {
 
-    // Single center column of 4 rows, slots 12,13,14,15 in a 27-slot inv
-    private static final int[] COLUMN     = {3, 12, 21, 30}; // center col in 45-slot
-    private static final int   DISPLAY_ROW = 1;              // row index shown as result
-
     private static final int[][] SPIN_STEPS = {
             {12, 1}, {12, 2}, {12, 3}, {12, 4},
             {5,  6}, {3,  8}, {2, 10}, {1, 12}

@@ -98,56 +98,114 @@ public class CrateManager {
 
         List<String> changes = new ArrayList<>();
 
+        // Basic fields
         if (!java.util.Objects.equals(before.getDisplayName(), after.getDisplayName()))
             changes.add("displayName '" + before.getDisplayName() + "' → '" + after.getDisplayName() + "'");
-
         if (before.isEnabled() != after.isEnabled())
             changes.add("enabled " + before.isEnabled() + " → " + after.isEnabled());
-
         if (before.getCooldownMs() != after.getCooldownMs())
             changes.add("cooldown " + before.getCooldownMs() + "ms → " + after.getCooldownMs() + "ms");
+        if (before.isMassOpenEnabled() != after.isMassOpenEnabled())
+            changes.add("massOpen " + before.isMassOpenEnabled() + " → " + after.isMassOpenEnabled());
+        if (before.getMassOpenLimit() != after.getMassOpenLimit())
+            changes.add("massOpenLimit " + before.getMassOpenLimit() + " → " + after.getMassOpenLimit());
+        if (before.isAccessDeniedKnockback() != after.isAccessDeniedKnockback())
+            changes.add("knockback " + before.isAccessDeniedKnockback() + " → " + after.isAccessDeniedKnockback());
+        if (Double.compare(before.getKnockbackStrength(), after.getKnockbackStrength()) != 0)
+            changes.add("knockbackStrength " + before.getKnockbackStrength() + " → " + after.getKnockbackStrength());
 
-        // GUI animation
+        // Animations
         if (before.getGuiAnimation() != after.getGuiAnimation())
             changes.add("guiAnimation " + before.getGuiAnimation() + " → " + after.getGuiAnimation());
-
-        // Idle animation
         if (!before.getIdleAnimation().getType().equals(after.getIdleAnimation().getType()))
-            changes.add("idleAnimation " + before.getIdleAnimation().getType()
-                    + " → " + after.getIdleAnimation().getType());
+            changes.add("idleAnimation " + before.getIdleAnimation().getType() + " → " + after.getIdleAnimation().getType());
+        if (!before.getIdleAnimation().getParticle().equals(after.getIdleAnimation().getParticle()))
+            changes.add("idleParticle " + before.getIdleAnimation().getParticle() + " → " + after.getIdleAnimation().getParticle());
+        if (!before.getOpenAnimation().getType().equals(after.getOpenAnimation().getType()))
+            changes.add("openAnimation " + before.getOpenAnimation().getType() + " → " + after.getOpenAnimation().getType());
+        if (!before.getOpenAnimation().getParticle().equals(after.getOpenAnimation().getParticle()))
+            changes.add("openParticle " + before.getOpenAnimation().getParticle() + " → " + after.getOpenAnimation().getParticle());
 
-        // Rewards — detect added/removed by id
+        // Hologram
+        if (Double.compare(before.getHologramHeight(), after.getHologramHeight()) != 0)
+            changes.add("hologramHeight " + before.getHologramHeight() + " → " + after.getHologramHeight());
+        if (!before.getHologramLines().equals(after.getHologramLines()))
+            changes.add("hologramLines (" + before.getHologramLines().size() + " → " + after.getHologramLines().size() + " lines)");
+
+        // Pity
+        Crate.PityConfig bp = before.getPity(), ap = after.getPity();
+        if (bp.isEnabled() != ap.isEnabled())
+            changes.add("pity " + bp.isEnabled() + " → " + ap.isEnabled());
+        else if (ap.isEnabled()) {
+            if (bp.getThreshold() != ap.getThreshold())
+                changes.add("pity.threshold " + bp.getThreshold() + " → " + ap.getThreshold());
+            if (bp.getSoftPityStart() != ap.getSoftPityStart())
+                changes.add("pity.softStart " + bp.getSoftPityStart() + " → " + ap.getSoftPityStart());
+            if (!java.util.Objects.equals(bp.getRareRarityMinimum(), ap.getRareRarityMinimum()))
+                changes.add("pity.minRarity " + bp.getRareRarityMinimum() + " → " + ap.getRareRarityMinimum());
+            if (Double.compare(bp.getBonusChancePerOpen(), ap.getBonusChancePerOpen()) != 0)
+                changes.add("pity.bonusChance " + bp.getBonusChancePerOpen() + " → " + ap.getBonusChancePerOpen());
+        }
+
+        // Schedule
+        boolean beforeHasSched = before.getSchedule() != null;
+        boolean afterHasSched  = after.getSchedule() != null;
+        if (beforeHasSched != afterHasSched) {
+            changes.add(afterHasSched ? "schedule added (" + after.getSchedule().getMode() + ")"
+                    : "schedule removed");
+        } else if (beforeHasSched && !before.getSchedule().getMode().equals(after.getSchedule().getMode())) {
+            changes.add("schedule " + before.getSchedule().getMode() + " → " + after.getSchedule().getMode());
+        }
+
+        // Required keys
+        Set<String> beforeKeys = before.getRequiredKeys().stream()
+                .map(Crate.KeyRequirement::getKeyId)
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> afterKeys = after.getRequiredKeys().stream()
+                .map(Crate.KeyRequirement::getKeyId)
+                .collect(java.util.stream.Collectors.toSet());
+        afterKeys.stream().filter(k -> !beforeKeys.contains(k))
+                .forEach(k -> changes.add("added key '" + k + "'"));
+        beforeKeys.stream().filter(k -> !afterKeys.contains(k))
+                .forEach(k -> changes.add("removed key '" + k + "'"));
+
+        // Rewards — added/removed
         Set<String> beforeIds = before.getRewards().stream()
                 .map(me.bintanq.quantumcrates.model.reward.Reward::getId)
                 .collect(java.util.stream.Collectors.toSet());
         Set<String> afterIds = after.getRewards().stream()
                 .map(me.bintanq.quantumcrates.model.reward.Reward::getId)
                 .collect(java.util.stream.Collectors.toSet());
-
         afterIds.stream().filter(id -> !beforeIds.contains(id))
                 .forEach(id -> changes.add("added reward '" + id + "'"));
         beforeIds.stream().filter(id -> !afterIds.contains(id))
                 .forEach(id -> changes.add("removed reward '" + id + "'"));
-
-        // Reward weight changes
-        after.getRewards().forEach(ar -> {
-            before.getRewards().stream()
-                    .filter(br -> br.getId().equals(ar.getId()))
-                    .findFirst().ifPresent(br -> {
-                        if (br.getWeight() != ar.getWeight())
-                            changes.add("reward '" + ar.getId() + "' weight "
-                                    + br.getWeight() + " → " + ar.getWeight());
-                    });
-        });
+        // Weight changes
+        after.getRewards().forEach(ar -> before.getRewards().stream()
+                .filter(br -> br.getId().equals(ar.getId()))
+                .findFirst().ifPresent(br -> {
+                    if (Double.compare(br.getWeight(), ar.getWeight()) != 0)
+                        changes.add("reward '" + ar.getId() + "' weight " + br.getWeight() + " → " + ar.getWeight());
+                }));
 
         // Locations
         int beforeLocs = before.getLocations().size();
         int afterLocs  = after.getLocations().size();
         if (beforeLocs != afterLocs)
-            changes.add("locations count " + beforeLocs + " → " + afterLocs);
+            changes.add("locations " + beforeLocs + " → " + afterLocs);
 
-        String detail = changes.isEmpty() ? "metadata only"
-                : String.join("; ", changes);
+        // Build detail string — compact jika banyak
+        String detail;
+        if (changes.isEmpty()) {
+            detail = "no tracked fields changed";
+        } else if (changes.size() <= 3) {
+            detail = String.join("; ", changes);
+        } else {
+            // Ambil 3 pertama, sisanya ringkas
+            detail = String.join("; ", changes.subList(0, 3))
+                    + " (+" + (changes.size() - 3) + " more)";
+        }
+
         return new SaveReport.Entry("CRATE", SaveReport.ChangeType.MODIFIED,
                 "Modified crate '" + after.getId() + "': " + detail);
     }
