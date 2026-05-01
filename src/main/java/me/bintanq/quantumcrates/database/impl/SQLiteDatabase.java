@@ -26,7 +26,8 @@ public class SQLiteDatabase extends AbstractDatabase {
 
     @Override
     public void init() throws Exception {
-        File dbFile = new File(plugin.getDataFolder(), plugin.getConfig().getString("database.sqlite.file", "quantumcrates.db"));
+        File dbFile = new File(plugin.getDataFolder(),
+                plugin.getConfig().getString("database.sqlite.file", "quantumcrates.db"));
         if (!plugin.getDataFolder().exists()) plugin.getDataFolder().mkdirs();
 
         HikariConfig config = new HikariConfig();
@@ -34,23 +35,22 @@ public class SQLiteDatabase extends AbstractDatabase {
         config.setDriverClassName("org.sqlite.JDBC");
         config.setJdbcUrl("jdbc:sqlite:" + dbFile.getAbsolutePath());
 
-        // SQLite is single-writer — pool size 1 avoids "database is locked"
         config.setMaximumPoolSize(1);
         config.setMinimumIdle(1);
         config.setConnectionTimeout(30_000);
         config.setIdleTimeout(600_000);
         config.setMaxLifetime(1_800_000);
 
-        // SQLite-specific pragmas for performance & safety
-        config.addDataSourceProperty("journal_mode", "WAL");
-        config.addDataSourceProperty("synchronous",  "NORMAL");
-        config.addDataSourceProperty("cache_size",   "10000");
-        config.addDataSourceProperty("busy_timeout", "5000");
-        config.addDataSourceProperty("foreign_keys", "ON");
+        config.setConnectionInitSql(
+                "PRAGMA journal_mode=WAL; " +
+                        "PRAGMA synchronous=NORMAL; " +
+                        "PRAGMA cache_size=10000; " +
+                        "PRAGMA busy_timeout=5000; " +
+                        "PRAGMA foreign_keys=ON;"
+        );
 
         dataSource = new HikariDataSource(config);
         Logger.info("SQLite pool initialised — file: &e" + dbFile.getName());
-
         createTables();
     }
 

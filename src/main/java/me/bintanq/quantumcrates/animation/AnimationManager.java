@@ -5,11 +5,13 @@ import me.bintanq.quantumcrates.animation.impl.*;
 import me.bintanq.quantumcrates.model.Crate;
 import me.bintanq.quantumcrates.model.reward.RewardResult;
 import me.bintanq.quantumcrates.util.Logger;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AnimationManager {
 
@@ -39,12 +41,13 @@ public class AnimationManager {
         resolveAnimation(crate).start(session);
     }
 
-
     public void onInventoryClose(Player player) {
     }
 
-    /** Called by animation impl when it finishes naturally. */
     public void completeSession(CrateSession session) {
+        if (!session.tryComplete()) {
+            return;
+        }
         sessions.remove(session.getPlayer().getUniqueId());
         session.setRunning(false);
         session.cancelAllTasks();
@@ -54,18 +57,31 @@ public class AnimationManager {
         return switch (crate.getGuiAnimation()) {
             case SHUFFLER    -> new ShufflerAnimation(plugin);
             case BOUNDARY    -> new BoundaryAnimation(plugin);
-            case SINGLE_SPIN -> new SingleSpinAnimation(plugin);  // renamed
+            case SINGLE_SPIN -> new SingleSpinAnimation(plugin);
             case FLICKER     -> new FlickerAnimation(plugin);
             default          -> new RouletteAnimation(plugin);
         };
     }
 
     public void shutdown() {
-        sessions.values().forEach(s -> {
+        java.util.List<CrateSession> pending = new java.util.ArrayList<>(sessions.values());
+        sessions.clear();
+
+        for (CrateSession s : pending) {
             s.setRunning(false);
             s.cancelAllTasks();
-            plugin.getCrateManager().deliverRewardPublic(s.getPlayer(), s.getResult());
-        });
-        sessions.clear();
+            if (!s.tryComplete()) continue;
+
+            Player player = s.getPlayer();
+            RewardResult result = s.getResult();
+
+            if (Bukkit.isPrimaryThread()) {
+                plugin.getCrateManager().deliverRewardPublic(player, result);
+            } else {
+                // Should not normally happen — onDisable is main thread
+                Bukkit.getScheduler().runTask(plugin,
+                        () -> plugin.getCrateManager().deliverRewardPublic(player, result));
+            }
+        }
     }
 }

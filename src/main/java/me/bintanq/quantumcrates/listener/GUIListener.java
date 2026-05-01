@@ -80,13 +80,11 @@ public class GUIListener implements Listener {
         if (session == null) return;
 
         if (session.isRunning()) {
-            session.setForfeited(false); // NOT forfeited — we are delivering
             session.setRunning(false);
             session.cancelAllTasks();
             plugin.getAnimationManager().completeSession(session);
             plugin.getCrateManager().deliverRewardPublic(player, session.getResult());
         } else {
-
             plugin.getAnimationManager().completeSession(session);
         }
     }

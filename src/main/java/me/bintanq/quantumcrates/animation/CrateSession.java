@@ -25,10 +25,17 @@ public class CrateSession {
     private long tickCount    = 0;
     private long tickInterval = 1;
 
+    private final java.util.concurrent.atomic.AtomicBoolean completed = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+
     public CrateSession(Player player, Crate crate, RewardResult result) {
         this.player = player;
         this.crate  = crate;
         this.result = result;
+    }
+
+    public boolean tryComplete() {
+        return completed.compareAndSet(false, true);
     }
 
     /* ── SpinStep helpers ── */

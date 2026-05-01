@@ -23,13 +23,35 @@ public class PacketHologramProvider implements HologramProvider {
 
     @Override
     public Object createHologram(String id, Location location, List<String> lines) {
-        List<ArmorStand> stands  = new ArrayList<>();
-        // Center on block: +0.5 X/Z, base offset Y
-        Location base = location.clone().add(0.0, 0.0, 0.0); // already offset by HologramManager
-        Location current = base.clone();
+        List<ArmorStand> stands = new ArrayList<>();
+        Location current = location.clone();
 
+        if (!org.bukkit.Bukkit.isPrimaryThread()) {
+            java.util.concurrent.CompletableFuture<List<ArmorStand>> future = new java.util.concurrent.CompletableFuture<>();
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                try {
+                    future.complete(spawnStands(current, lines));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                stands = future.get(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception e) {
+                Logger.warn("PacketHologram: Failed to spawn hologram for " + id + " from async thread: " + e.getMessage());
+                return new ArrayList<>();
+            }
+        } else {
+            stands = spawnStands(current, lines);
+        }
+        return stands;
+    }
+
+    private List<ArmorStand> spawnStands(Location base, List<String> lines) {
+        List<ArmorStand> stands = new ArrayList<>();
+        Location current = base.clone();
         for (String line : lines) {
-            String colored = ChatColor.translateAlternateColorCodes('&', line);
+            String colored = org.bukkit.ChatColor.translateAlternateColorCodes('&', line);
             stands.add(spawnStand(current, colored));
             current = current.clone().subtract(0, LINE_GAP, 0);
         }
@@ -56,7 +78,12 @@ public class PacketHologramProvider implements HologramProvider {
     public void deleteHologram(Object handle) {
         if (!(handle instanceof List<?> rawList)) return;
         List<ArmorStand> stands = (List<ArmorStand>) rawList;
-        stands.forEach(s -> { if (s.isValid()) s.remove(); });
+        Runnable remove = () -> stands.forEach(s -> { if (s.isValid()) s.remove(); });
+        if (org.bukkit.Bukkit.isPrimaryThread()) {
+            remove.run();
+        } else {
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, remove);
+        }
         stands.clear();
     }
 

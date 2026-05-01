@@ -16,7 +16,10 @@ import me.bintanq.quantumcrates.util.Logger;
 import org.bukkit.Bukkit;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class WebServer {
 
@@ -121,6 +124,16 @@ public class WebServer {
             ctx.status(500).json(err("Internal error: " + e.getMessage()));
         });
 
+        rateLimiterCleaner.scheduleAtFixedRate(() -> {
+            long now = System.currentTimeMillis();
+            rateLimiter.entrySet().removeIf(entry -> {
+                synchronized (entry.getValue()) {
+                    entry.getValue().removeIf(t -> now - t > 60_000);
+                    return entry.getValue().isEmpty();
+                }
+            });
+        }, 5, 5, TimeUnit.MINUTES);
+
         Thread t = new Thread(() -> {
             try {
                 app.start(port);
@@ -132,9 +145,18 @@ public class WebServer {
         }, "QuantumCrates-WebServer");
         t.setDaemon(true);
         t.start();
+
     }
 
+    private final java.util.concurrent.ScheduledExecutorService rateLimiterCleaner =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "QuantumCrates-RateLimiterCleaner");
+                t.setDaemon(true);
+                return t;
+            });
+
     public void stop() {
+        rateLimiterCleaner.shutdown();
         if (app != null) { app.stop(); Logger.info("Web Server stopped."); }
     }
 
@@ -441,12 +463,17 @@ public class WebServer {
                 } else if (crateId != null) {
                     logs = plugin.getDatabaseManager().getCrateLogs(crateId, limit, page * limit).get();
                 } else {
-                    logs = new ArrayList<>();
-                    for (Crate c : plugin.getCrateManager().getAllCrates()) {
-                        logs.addAll(plugin.getDatabaseManager().getCrateLogs(c.getId(), limit, 0).get());
+                    List<CompletableFuture<List<CrateLog>>> futures =
+                            plugin.getCrateManager().getAllCrates().stream()
+                                    .map(c -> plugin.getDatabaseManager().getCrateLogs(c.getId(), limit, 0))
+                                    .collect(java.util.stream.Collectors.toList());
+
+                    List<CrateLog> allLogs = new ArrayList<>();
+                    for (CompletableFuture<List<CrateLog>> f : futures) {
+                        allLogs.addAll(f.get());
                     }
-                    logs.sort(Comparator.comparingLong(CrateLog::getTimestamp).reversed());
-                    if (logs.size() > limit) logs = logs.subList(0, limit);
+                    allLogs.sort(Comparator.comparingLong(CrateLog::getTimestamp).reversed());
+                    logs = allLogs.size() > limit ? allLogs.subList(0, limit) : allLogs;
                 }
                 ctx.result(GsonProvider.getGson().toJson(Map.of("data", logs, "count", logs.size())));
             } catch (Exception e) { ctx.status(500).json(err(e.getMessage())); }
@@ -806,6 +833,7 @@ public class WebServer {
             </div></body></html>
             """.formatted(title, title, msg, hint);
     }
+
 
     private Map<String, Object> ok(String msg) {
         return Map.of("status", "ok", "message", msg);

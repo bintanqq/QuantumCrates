@@ -77,22 +77,12 @@ public class CrateManager {
 
     public void saveCrate(Crate crate) {
         synchronized (saveLock) {
-            // Fix: Clean up old file if ID changed to prevent duplication/ghost files
-            Crate existing = crateRegistry.get(crate.getId());
-            if (existing != null && !existing.getId().equals(crate.getId())) {
-                File oldFile = new File(cratesDir, existing.getId() + ".json");
-                if (oldFile.exists()) oldFile.delete();
-            }
             File file = new File(cratesDir, crate.getId() + ".json");
             try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
                 GsonProvider.getGson().toJson(crate, writer);
             } catch (IOException e) {
                 Logger.severe("Failed to save crate '" + crate.getId() + "': " + e.getMessage());
                 return;
-            }
-            // Fix: Remove old registry entry if ID changed to prevent double-save/duplication
-            if (existing != null && !existing.getId().equals(crate.getId())) {
-                crateRegistry.remove(existing.getId());
             }
             crateRegistry.put(crate.getId(), crate);
         }
@@ -156,22 +146,32 @@ public class CrateManager {
             return;
         }
 
-        AtomicInteger remaining = new AtomicInteger(actual);
-        AtomicInteger successCount = new AtomicInteger(0);
+        if (openingLock.contains(player.getUniqueId())) {
+            sendOpenResultFeedback(player, OpenResult.ALREADY_OPENING, crateId);
+            return;
+        }
+
+        final int totalToOpen = actual;
+        final java.lang.ref.WeakReference<Player> playerRef = new java.lang.ref.WeakReference<>(player);
+        final java.util.concurrent.atomic.AtomicInteger remaining = new java.util.concurrent.atomic.AtomicInteger(totalToOpen);
+        final java.util.concurrent.atomic.AtomicInteger successCount = new java.util.concurrent.atomic.AtomicInteger(0);
+        final String capturedCrateId = crateId;
 
         new org.bukkit.scheduler.BukkitRunnable() {
             @Override
             public void run() {
-                if (remaining.get() <= 0 || !player.isOnline()) {
-                    if (successCount.get() > 0)
-                        MessageManager.send(player, "mass-open-success", "{count}", String.valueOf(successCount.get()));
+                Player p = playerRef.get();
+                if (p == null || !p.isOnline() || remaining.get() <= 0) {
+                    int success = successCount.get();
+                    if (p != null && success > 0)
+                        MessageManager.send(p, "mass-open-success", "{count}", String.valueOf(success));
                     cancel();
                     return;
                 }
 
                 int batch = Math.min(10, remaining.get());
                 for (int i = 0; i < batch; i++) {
-                    if (executeOpen(player, crateId, true)) {
+                    if (executeOpen(p, capturedCrateId, true)) {
                         successCount.incrementAndGet();
                     } else {
                         remaining.set(0);
@@ -188,12 +188,14 @@ public class CrateManager {
         if (crate == null || !crate.isEnabled()) return false;
         if (openingLock.contains(player.getUniqueId())) return false;
         if (!crate.isCurrentlyOpenable()) return false;
+
         if (!keyManager.hasRequiredKeys(player, crate)) return false;
 
         PlayerData data = playerDataManager.getOrEmpty(player.getUniqueId());
         openingLock.add(player.getUniqueId());
 
         try {
+
             if (!keyManager.consumeKeys(player, crate)) return false;
 
             RewardResult result = rewardProcessor.roll(crate, data);

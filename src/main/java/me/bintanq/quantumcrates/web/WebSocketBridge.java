@@ -14,9 +14,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class WebSocketBridge {
 
-    private static WebSocketBridge instance;
+    private static volatile WebSocketBridge instance;
     public static WebSocketBridge getInstance() {
-        if (instance == null) instance = new WebSocketBridge();
+        if (instance == null) {
+            synchronized (WebSocketBridge.class) {
+                if (instance == null) {
+                    instance = new WebSocketBridge();
+                }
+            }
+        }
         return instance;
     }
 

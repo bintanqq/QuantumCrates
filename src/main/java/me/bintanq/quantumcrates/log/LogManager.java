@@ -21,6 +21,7 @@ public class LogManager {
                 t.setDaemon(true);
                 return t;
             });
+    private final Object flushLock = new Object();
 
     public LogManager(DatabaseManager db, Executor asyncExecutor) {
         this.db = db;
@@ -28,31 +29,40 @@ public class LogManager {
         scheduler.scheduleAtFixedRate(this::flushQueue, FLUSH_INTERVAL, FLUSH_INTERVAL, TimeUnit.SECONDS);
     }
 
-    /** Enqueues a log entry. Never blocks. Thread-safe. */
     public void log(CrateLog entry) {
         logQueue.add(entry);
         if (logQueue.size() >= BATCH_SIZE * 5)
             CompletableFuture.runAsync(this::flushQueue, asyncExecutor);
     }
 
-    /** Flushes all queued entries to DB. Called on plugin disable. */
     public void flushQueue() {
         if (logQueue.isEmpty()) return;
-        List<CrateLog> batch = new ArrayList<>();
-        CrateLog entry;
-        while ((entry = logQueue.poll()) != null) {
-            batch.add(entry);
-            if (batch.size() >= BATCH_SIZE) {
-                db.insertLogBatch(new ArrayList<>(batch));
-                batch.clear();
+        synchronized (flushLock) {
+            if (logQueue.isEmpty()) return;
+            List<CrateLog> batch = new ArrayList<>();
+            CrateLog entry;
+            while ((entry = logQueue.poll()) != null) {
+                batch.add(entry);
+                if (batch.size() >= BATCH_SIZE) {
+                    db.insertLogBatch(new ArrayList<>(batch));
+                    batch.clear();
+                }
             }
+            if (!batch.isEmpty()) db.insertLogBatch(new ArrayList<>(batch));
         }
-        if (!batch.isEmpty()) db.insertLogBatch(new ArrayList<>(batch));
         Logger.debug("Log flush: wrote entries to database.");
     }
 
     public void shutdown() {
-        flushQueue();
         scheduler.shutdown();
+        try {
+            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                scheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            scheduler.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+        flushQueue();
     }
 }

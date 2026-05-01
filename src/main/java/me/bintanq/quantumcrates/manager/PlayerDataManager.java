@@ -55,12 +55,18 @@ public class PlayerDataManager {
         return dirtySet.containsKey(uuid);
     }
 
-    /** Mutates player data in-cache and marks dirty in one step. */
     private void mutateData(UUID uuid, java.util.function.Consumer<PlayerData> mutation) {
-        PlayerData data = getOrEmpty(uuid);
-        mutation.accept(data);
-        cache.put(uuid, data);
-        markDirty(uuid);
+        PlayerData data = cache.get(uuid);
+        if (data != null) {
+            mutation.accept(data);
+            markDirty(uuid);
+        } else {
+            db.loadPlayerData(uuid).thenAcceptAsync(loaded -> {
+                mutation.accept(loaded);
+                loaded.setLastSeen(System.currentTimeMillis());
+                db.savePlayerData(loaded);
+            }, asyncExecutor);
+        }
     }
 
     public int getPity(UUID uuid, String crateId) {
@@ -89,12 +95,15 @@ public class PlayerDataManager {
 
     public void flushAll() {
         List<PlayerData> dirty = new ArrayList<>();
-        for (UUID uuid : dirtySet.keySet()) {
+        java.util.Iterator<UUID> iter = dirtySet.keySet().iterator();
+        while (iter.hasNext()) {
+            UUID uuid = iter.next();
             PlayerData data = cache.get(uuid);
             if (data != null) {
                 data.setLastSeen(System.currentTimeMillis());
                 dirty.add(data);
             }
+            iter.remove();
         }
         if (!dirty.isEmpty()) {
             try {
@@ -104,7 +113,6 @@ public class PlayerDataManager {
                 Logger.severe("Failed to flush player data on shutdown: " + e.getMessage());
             }
         }
-        dirtySet.clear();
         cache.clear();
     }
 }

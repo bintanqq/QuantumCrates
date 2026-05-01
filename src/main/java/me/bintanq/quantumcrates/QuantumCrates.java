@@ -26,6 +26,7 @@ import me.bintanq.quantumcrates.web.WebSocketBridge;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -128,10 +129,25 @@ public final class QuantumCrates extends JavaPlugin {
         ifNotNull(particleManager,  ParticleManager::stopAll);
         ifNotNull(crateManager,     CrateManager::shutdown);
         ifNotNull(playerDataManager,PlayerDataManager::flushAll);
-        ifNotNull(logManager,       LogManager::flushQueue);
-        ifNotNull(animationManager, AnimationManager::shutdown);
+        ifNotNull(logManager,       LogManager::shutdown);
 
-        if (asyncExecutor != null) asyncExecutor.shutdown();
+        if (animationManager != null) {
+            animationManager.shutdown();
+        }
+
+        if (asyncExecutor != null) {
+            asyncExecutor.shutdown();
+            try {
+                if (!((java.util.concurrent.ExecutorService) asyncExecutor)
+                        .awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                    Logger.warn("Async executor did not terminate in time, forcing shutdown.");
+                    ((java.util.concurrent.ExecutorService) asyncExecutor).shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                ((java.util.concurrent.ExecutorService) asyncExecutor).shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
         if (databaseManager != null) databaseManager.close();
 
         Logger.info("&cQuantumCrates disabled.");
@@ -139,12 +155,14 @@ public final class QuantumCrates extends JavaPlugin {
 
     private void initManagers() {
         rarityManager     = new RarityManager(this);
+        Objects.requireNonNull(rarityManager, "RarityManager failed to initialize");
         logManager        = new LogManager(databaseManager, asyncExecutor);
         playerDataManager = new PlayerDataManager(databaseManager, asyncExecutor);
         hookManager       = new HookManager(this);
         rewardProcessor   = new RewardProcessor(this, hookManager);
         keyManager        = new KeyManager(this, playerDataManager);
         crateManager      = new CrateManager(this, playerDataManager, rewardProcessor, logManager, keyManager);
+        Logger.info("All managers initialized.");
     }
 
     private boolean initDatabase() {

@@ -145,8 +145,12 @@ public class KeyManager {
             return plugin.getDatabaseManager()
                     .getVirtualKeys(player.getUniqueId(), keyId)
                     .get(1, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            Logger.warn("Virtual key balance timeout: " + player.getName());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Logger.warn("Virtual key balance interrupted: " + player.getName());
+            return 0;
+        } catch (java.util.concurrent.ExecutionException | TimeoutException e) {
+            Logger.warn("Virtual key balance timeout/error for " + player.getName() + ": " + e.getMessage());
             return 0;
         }
     }
@@ -156,8 +160,12 @@ public class KeyManager {
             return plugin.getDatabaseManager()
                     .removeVirtualKeys(player.getUniqueId(), keyId, amount)
                     .get(2, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            Logger.severe("Failed to remove virtual key: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Logger.severe("Virtual key removal interrupted for " + player.getName());
+            return false;
+        } catch (java.util.concurrent.ExecutionException | TimeoutException e) {
+            Logger.severe("Failed to remove virtual key for " + player.getName() + ": " + e.getMessage());
             return false;
         }
     }
