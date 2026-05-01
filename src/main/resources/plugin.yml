@@ -1,7 +1,7 @@
 name: QuantumCrate
 version: '${project.version}'
 main: me.bintanq.quantumcrates.QuantumCrates
-api-version: '1.21'
+api-version: '1.20'
 description: Revolutionary crate plugin with Web-First management.
 authors: [ bintanq ]
 

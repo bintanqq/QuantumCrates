@@ -19,6 +19,12 @@ public class ParticleManager {
     private final Map<String, BukkitTask> idleTasks   = new HashMap<>();
     private final Map<String, Long>       tickCountMap = new HashMap<>();
 
+    private static final Particle FALLBACK_IDLE = resolveParticleSafe(
+            "HAPPY_VILLAGER", "VILLAGER_HAPPY", "COMPOSTER");
+
+    private static final Particle FALLBACK_OPEN = resolveParticleSafe(
+            "FIREWORKS", "FIREWORK", "FLAME");
+
     public ParticleManager(QuantumCrates plugin) {
         this.plugin = plugin;
     }
@@ -32,15 +38,13 @@ public class ParticleManager {
         Location base = toLocation(crate.getLocation());
         if (base == null) return;
 
-        Crate.AnimationConfig cfg    = crate.getIdleAnimation();
-        AnimationType         type   = parseType(cfg.getType());
+        Crate.AnimationConfig cfg  = crate.getIdleAnimation();
+        AnimationType         type = parseType(cfg.getType());
         if (type == AnimationType.NONE) return;
 
-        Particle particle = parseParticle(cfg.getParticle(), Particle.HAPPY_VILLAGER);
-
-        // DEAD KEYS REMOVED: speed, radius, density no longer used
-        long   tickInterval = getTickInterval(type);
-        int    maxSteps     = getMaxSteps(type);
+        Particle particle    = parseParticle(cfg.getParticle(), FALLBACK_IDLE);
+        long     tickInterval = getTickInterval(type);
+        int      maxSteps    = getMaxSteps(type);
 
         tickCountMap.put(crate.getId(), 0L);
 
@@ -60,9 +64,7 @@ public class ParticleManager {
                 playEffect(type, base, particle, (int) tick, w);
 
                 long next = tick + 1;
-                if (next >= maxSteps) {
-                    next = -10L;
-                }
+                if (next >= maxSteps) next = -10L;
                 tickCountMap.put(crate.getId(), next);
             }
         }.runTaskTimer(plugin, 0L, 1L);
@@ -91,21 +93,20 @@ public class ParticleManager {
     /* ─── one-shot open effect ───────────────────────── */
 
     public void playOpenEffect(Crate crate, Location playerLoc) {
-        Crate.AnimationConfig cfg    = crate.getOpenAnimation();
-        AnimationType         type   = parseType(cfg.getType());
+        Crate.AnimationConfig cfg   = crate.getOpenAnimation();
+        AnimationType         type  = parseType(cfg.getType());
         if (type == AnimationType.NONE) return;
 
-        Particle particle   = parseParticle(cfg.getParticle(), Particle.FIREWORK);
-        int      maxSteps   = getMaxSteps(type);
-        long     tickInter  = getTickInterval(type);
+        Particle particle  = parseParticle(cfg.getParticle(), FALLBACK_OPEN);
+        int      maxSteps  = getMaxSteps(type);
+        long     tickInter = getTickInterval(type);
 
-        // center on player location
         Location origin = playerLoc.clone().add(0.5, 0, 0.5);
 
         new BukkitRunnable() {
             long tick = 0;
             @Override public void run() {
-                if (tick >= maxSteps * 3L) { cancel(); return; } // open effect = 3 loops max
+                if (tick >= maxSteps * 3L) { cancel(); return; }
                 World w = origin.getWorld();
                 if (w == null) { cancel(); return; }
                 if (tick % tickInter == 0) {
@@ -128,7 +129,7 @@ public class ParticleManager {
             case TORNADO -> playTornado(origin, particle, step, w);
             case VORTEX  -> playVortex (origin, particle, step, w);
             case SIMPLE  -> playSimple (origin, particle, w);
-            default      -> playSimple (origin, particle, w); // RING FALLBACK
+            default      -> playSimple (origin, particle, w);
         }
     }
 
@@ -137,18 +138,17 @@ public class ParticleManager {
         double x = Math.PI * step;
         double z = step * 0.1 % 2.5;
         double y = 0.75;
-        Location left  = getPointOnCircle(location, true, x,            y, z);
-        Location right = getPointOnCircle(location, true, x - Math.PI,  y, z);
+        Location left  = getPointOnCircle(location, true, x,           y, z);
+        Location right = getPointOnCircle(location, true, x - Math.PI, y, z);
         w.spawnParticle(particle, left,  1, 0, 0, 0, 0);
         w.spawnParticle(particle, right, 1, 0, 0, 0, 0);
     }
 
-    /** SpiralEffect: tickInterval=1, maxSteps=50 */
-    private static final double SPIRAL_RADIUS   = 1.0;
-    private static final double SPIRAL_VSPACE   = 0.1;
-    private static final double SPIRAL_START    = 0.0;
-    private static final double SPIRAL_END      = 6 * Math.PI;
-    private static final int    SPIRAL_POINTS   = 50;
+    private static final double SPIRAL_RADIUS = 1.0;
+    private static final double SPIRAL_VSPACE = 0.1;
+    private static final double SPIRAL_START  = 0.0;
+    private static final double SPIRAL_END    = 6 * Math.PI;
+    private static final int    SPIRAL_POINTS = 50;
 
     private void playSpiral(Location origin, Particle particle, int step, World w) {
         double delta = (SPIRAL_END - SPIRAL_START) / SPIRAL_POINTS;
@@ -160,9 +160,9 @@ public class ParticleManager {
         w.spawnParticle(particle, loc, 5, 0, 0, 0, 0);
     }
 
-    private static final int SPHERE_CIRCLES = 8;
-    private static final int SPHERE_POINTS  = 10;
-    private static final double SPHERE_DELTA = Math.PI / 10.0;
+    private static final int    SPHERE_CIRCLES = 8;
+    private static final int    SPHERE_POINTS  = 10;
+    private static final double SPHERE_DELTA   = Math.PI / 10.0;
 
     private void playSphere(Location origin, Particle particle, int step, World w) {
         double angle    = step * SPHERE_DELTA;
@@ -178,7 +178,6 @@ public class ParticleManager {
         }
     }
 
-    /** BEACON REMOVED PULSAR REFERENCES */
     private void playBeacon(Location origin, Particle particle, int step, World w) {
         double x = 2 * Math.PI / 7D * step;
         for (int yStep = step; yStep > Math.max(0, step - 25); --yStep) {
@@ -187,11 +186,10 @@ public class ParticleManager {
         }
     }
 
-    /** TornadoEffect: tickInterval=2, maxSteps=8 */
-    private static final double TORNADO_Y_OFFSET   = 0.15D;
-    private static final float  TORNADO_HEIGHT      = 3.15F;
-    private static final float  TORNADO_MAX_RADIUS  = 2.25F;
-    private static final double TORNADO_DISTANCE    = 0.375D;
+    private static final double TORNADO_Y_OFFSET  = 0.15D;
+    private static final float  TORNADO_HEIGHT     = 3.15F;
+    private static final float  TORNADO_MAX_RADIUS = 2.25F;
+    private static final double TORNADO_DISTANCE   = 0.375D;
 
     private void playTornado(Location origin, Particle particle, int step, World w) {
         Location loc    = origin.clone().add(0, 0.5D, 0);
@@ -210,18 +208,17 @@ public class ParticleManager {
         loc.subtract(0, TORNADO_Y_OFFSET, 0);
     }
 
-    /** VortexEffect: tickInterval=1, maxSteps=PARTICLES(34) */
-    private static final int    VORTEX_STRANDS   = 2;
-    private static final int    VORTEX_PARTICLES = 170 / 5;
-    private static final float  VORTEX_RADIUS    = 1.5F;
-    private static final float  VORTEX_CURVE     = 2.0F;
-    private static final double VORTEX_ROTATION  = Math.PI / 4;
+    private static final int   VORTEX_STRANDS   = 2;
+    private static final int   VORTEX_PARTICLES = 170 / 5;
+    private static final float VORTEX_RADIUS    = 1.5F;
+    private static final float VORTEX_CURVE     = 2.0F;
+    private static final double VORTEX_ROTATION = Math.PI / 4;
 
     private void playVortex(Location origin, Particle particle, int step, World w) {
         for (int boost = 0; boost < 3; boost++) {
             for (int strand = 1; strand <= VORTEX_STRANDS; strand++) {
-                float progress = step / (float) VORTEX_PARTICLES;
-                double point = VORTEX_CURVE * progress * 2.0f * Math.PI / VORTEX_STRANDS
+                float  progress = step / (float) VORTEX_PARTICLES;
+                double point    = VORTEX_CURVE * progress * 2.0f * Math.PI / VORTEX_STRANDS
                         + 2 * Math.PI * strand / VORTEX_STRANDS + VORTEX_ROTATION;
                 double addX = Math.cos(point) * progress * VORTEX_RADIUS;
                 double addZ = Math.sin(point) * progress * VORTEX_RADIUS;
@@ -237,8 +234,10 @@ public class ParticleManager {
         w.spawnParticle(particle, loc, 30, 0.3f, 0.1f, 0.3f, 0);
     }
 
-    private static Location getPointOnCircle(Location location, boolean doCopy, double x, double z, double y) {
-        return (doCopy ? location.clone() : location).add(Math.cos(x) * z, y, Math.sin(x) * z);
+    private static Location getPointOnCircle(Location location, boolean doCopy,
+                                             double x, double z, double y) {
+        return (doCopy ? location.clone() : location)
+                .add(Math.cos(x) * z, y, Math.sin(x) * z);
     }
 
     /* ─── tick intervals & maxSteps per type ────────── */
@@ -247,19 +246,19 @@ public class ParticleManager {
         return switch (type) {
             case HELIX, SPIRAL, SPHERE, VORTEX -> 1L;
             case SIMPLE, TORNADO               -> 2L;
-            case BEACON                         -> 3L;
-            default                             -> 2L;
+            case BEACON                        -> 3L;
+            default                            -> 2L;
         };
     }
 
     private int getMaxSteps(AnimationType type) {
         return switch (type) {
             case HELIX   -> 24;
-            case SPIRAL  -> SPIRAL_POINTS; // 50
-            case SPHERE  -> SPHERE_CIRCLES; // 8
+            case SPIRAL  -> SPIRAL_POINTS;
+            case SPHERE  -> SPHERE_CIRCLES;
             case BEACON  -> 40;
             case TORNADO -> 8;
-            case VORTEX  -> VORTEX_PARTICLES; // 34
+            case VORTEX  -> VORTEX_PARTICLES;
             case SIMPLE  -> 2;
             default      -> 20;
         };
@@ -273,8 +272,9 @@ public class ParticleManager {
 
     private AnimationType parseType(String name) {
         if (name == null || name.isEmpty()) return AnimationType.SIMPLE;
-        try { return AnimationType.valueOf(name.toUpperCase()); }
-        catch (IllegalArgumentException e) {
+        try {
+            return AnimationType.valueOf(name.toUpperCase());
+        } catch (IllegalArgumentException e) {
             Logger.warn("Unknown animation type: '" + name + "', defaulting to SIMPLE.");
             return AnimationType.SIMPLE;
         }
@@ -282,11 +282,46 @@ public class ParticleManager {
 
     private Particle parseParticle(String name, Particle fallback) {
         if (name == null || name.isEmpty()) return fallback;
-        try { return Particle.valueOf(name.toUpperCase()); }
-        catch (IllegalArgumentException e) {
-            Logger.warn("Unknown particle: '" + name + "', using fallback.");
-            return fallback;
+
+        try {
+            return Particle.valueOf(name.toUpperCase());
+        } catch (IllegalArgumentException ignored) {}
+
+        String alias = getCrossVersionAlias(name.toUpperCase());
+        if (alias != null) {
+            try {
+                return Particle.valueOf(alias);
+            } catch (IllegalArgumentException ignored) {}
         }
+
+        Logger.warn("Unknown particle: '" + name + "', using fallback '" + fallback.name() + "'.");
+        return fallback;
+    }
+
+    private static String getCrossVersionAlias(String name) {
+        return switch (name) {
+            case "FIREWORK"           -> "FIREWORKS";
+            case "SPELL"              -> "EFFECT";
+            case "SPELL_MOB"          -> "ENTITY_EFFECT";
+            case "SPELL_MOB_AMBIENT"  -> "AMBIENT_ENTITY_EFFECT";
+            case "SPELL_WITCH"        -> "WITCH";
+            case "SPELL_INSTANT"      -> "INSTANT_EFFECT";
+            case "CRIT_MAGIC"         -> "ENCHANTED_HIT";
+            case "FIREWORKS"          -> "FIREWORK";
+            case "EFFECT"             -> "SPELL";
+            case "ENTITY_EFFECT"      -> "SPELL_MOB";
+            case "AMBIENT_ENTITY_EFFECT" -> "SPELL_MOB_AMBIENT";
+            case "INSTANT_EFFECT"     -> "SPELL_INSTANT";
+            case "ENCHANTED_HIT"      -> "CRIT_MAGIC";
+            default                   -> null;
+        };
+    }
+
+    private static Particle resolveParticleSafe(String... candidates) {
+        for (String name : candidates) {
+            try { return Particle.valueOf(name); } catch (IllegalArgumentException ignored) {}
+        }
+        return Particle.FLAME;
     }
 
     private Location toLocation(Crate.SerializableLocation sl) {
