@@ -316,6 +316,12 @@ public abstract class AbstractDatabase implements DatabaseManager {
         }, asyncExecutor);
     }
 
+    @Override
+    public CompletableFuture<Boolean> removeVirtualKeysBatch(UUID uuid, String keyId, int totalAmount) {
+        return removeVirtualKeys(uuid, keyId, totalAmount);
+    }
+
+
     private CrateLog mapLog(ResultSet rs) throws SQLException {
         return new CrateLog(
                 UUID.fromString(rs.getString("uuid")),

@@ -27,6 +27,7 @@ public class KeyManager {
     private Material defaultPhysicalMaterial;
     private int defaultPhysicalCmd;
     private List<String> physicalExtraLore;
+    private final VirtualKeyCache keyCache = new VirtualKeyCache();
 
     public KeyManager(QuantumCrates plugin, PlayerDataManager playerDataManager) {
         this.plugin = plugin;
@@ -58,17 +59,16 @@ public class KeyManager {
         if (globalMode == KeyMode.VIRTUAL) {
             plugin.getDatabaseManager()
                     .addVirtualKeys(player.getUniqueId(), keyId, amount)
-                    .thenRun(() -> MessageManager.send(player, "key-given-receiver",
-                            "{amount}", String.valueOf(amount), "{key}", keyId));
+                    .thenRun(() -> {
+                        // Update cache write-through
+                        keyCache.add(player.getUniqueId(), keyId, amount);
+                        MessageManager.send(player, "key-given-receiver",
+                                "{amount}", String.valueOf(amount), "{key}", keyId);
 
-            plugin.getAsyncExecutor().execute(() -> {
-                try {
-                    int bal = plugin.getDatabaseManager()
-                            .getVirtualKeys(player.getUniqueId(), keyId).get();
-                    me.bintanq.quantumcrates.web.WebSocketBridge.getInstance()
-                            .broadcastKeyTransaction(player.getUniqueId(), keyId, amount, bal);
-                } catch (Exception ignored) {}
-            });
+                        int bal = keyCache.get(player.getUniqueId(), keyId);
+                        me.bintanq.quantumcrates.web.WebSocketBridge.getInstance()
+                                .broadcastKeyTransaction(player.getUniqueId(), keyId, amount, bal);
+                    });
         } else {
             int remaining = amount;
             while (remaining > 0) {
@@ -164,33 +164,72 @@ public class KeyManager {
     }
 
     public int getVirtualBalance(Player player, String keyId) {
+        int cached = keyCache.get(player.getUniqueId(), keyId);
+        if (cached >= 0) return cached;
+
         try {
-            return plugin.getDatabaseManager()
+            int balance = plugin.getDatabaseManager()
                     .getVirtualKeys(player.getUniqueId(), keyId)
                     .get(1, TimeUnit.SECONDS);
+            keyCache.set(player.getUniqueId(), keyId, balance);
+            return balance;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            Logger.warn("Virtual key balance interrupted: " + player.getName());
             return 0;
-        } catch (java.util.concurrent.ExecutionException | TimeoutException e) {
-            Logger.warn("Virtual key balance timeout/error for " + player.getName() + ": " + e.getMessage());
+        } catch (ExecutionException | TimeoutException e) {
+            Logger.warn("Virtual key balance timeout for " + player.getName() + ": " + e.getMessage());
             return 0;
         }
     }
 
     private boolean removeVirtual(Player player, String keyId, int amount) {
+        if (keyCache.isCached(player.getUniqueId(), keyId)) {
+            boolean subtracted = keyCache.subtract(player.getUniqueId(), keyId, amount);
+            if (!subtracted) return false;
+
+            plugin.getDatabaseManager()
+                    .removeVirtualKeys(player.getUniqueId(), keyId, amount)
+                    .thenAccept(dbSuccess -> {
+                        if (!dbSuccess) {
+                            // DB gagal (race condition) — rollback cache
+                            Logger.warn("DB remove failed post-cache-subtract for "
+                                    + player.getName() + " key=" + keyId + " amount=" + amount
+                                    + ". Rolling back cache.");
+                            keyCache.add(player.getUniqueId(), keyId, amount);
+                        }
+                    });
+            return true;
+        }
         try {
-            return plugin.getDatabaseManager()
+            boolean success = plugin.getDatabaseManager()
                     .removeVirtualKeys(player.getUniqueId(), keyId, amount)
                     .get(2, TimeUnit.SECONDS);
+            if (success) {
+                keyCache.add(player.getUniqueId(), keyId, -amount);
+            }
+            return success;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            Logger.severe("Virtual key removal interrupted for " + player.getName());
             return false;
-        } catch (java.util.concurrent.ExecutionException | TimeoutException e) {
+        } catch (ExecutionException | TimeoutException e) {
             Logger.severe("Failed to remove virtual key for " + player.getName() + ": " + e.getMessage());
             return false;
         }
+    }
+
+    public void preloadKeys(UUID uuid) {
+        Set<String> knownIds = new HashSet<>(getKnownKeyIds());
+        if (knownIds.isEmpty()) return;
+
+        for (String keyId : knownIds) {
+            plugin.getDatabaseManager()
+                    .getVirtualKeys(uuid, keyId)
+                    .thenAccept(balance -> keyCache.set(uuid, keyId, balance));
+        }
+    }
+
+    public void invalidateCache(UUID uuid) {
+        keyCache.invalidateAll(uuid);
     }
 
     private int countPhysical(Player player, String keyId) {
@@ -231,4 +270,35 @@ public class KeyManager {
         });
         return ids;
     }
+
+    /**
+     * Consume keys for ALL mass opens at once — 1 DB query total.
+     * @param count total number of opens (keys multiplied by count)
+     */
+    public boolean consumeKeysBatch(Player player, Crate crate, int count) {
+        for (Crate.KeyRequirement req : crate.getRequiredKeys()) {
+            int totalNeeded = req.getAmount() * count;
+            if (countAvailable(player, req) < totalNeeded) return false;
+        }
+        for (Crate.KeyRequirement req : crate.getRequiredKeys()) {
+            int totalNeeded = req.getAmount() * count;
+            if (!consumeKeyAmount(player, req, totalNeeded)) {
+                Logger.warn("Batch key consume failed mid-way: " + player.getName());
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean consumeKeyAmount(Player player, Crate.KeyRequirement req, int totalAmount) {
+        return switch (req.getType()) {
+            case VIRTUAL  -> removeVirtual(player, req.getKeyId(), totalAmount);
+            case PHYSICAL -> removePhysical(player, req.getKeyId(), totalAmount);
+            case MMOITEMS   -> { var h = plugin.getHookManager().getMmoItemsHook();   yield h != null && h.removeKey(player, req.getKeyId(), totalAmount); }
+            case ITEMSADDER -> { var h = plugin.getHookManager().getItemsAdderHook(); yield h != null && h.removeKey(player, req.getKeyId(), totalAmount); }
+            case ORAXEN     -> { var h = plugin.getHookManager().getOraxenHook();     yield h != null && h.removeKey(player, req.getKeyId(), totalAmount); }
+        };
+    }
+
+    VirtualKeyCache getKeyCache() { return keyCache; }
 }

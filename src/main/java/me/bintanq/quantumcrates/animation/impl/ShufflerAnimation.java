@@ -59,7 +59,7 @@ public class ShufflerAnimation implements CrateAnimation {
 
             boolean last = session.getSpinCount() >= TOTAL_SPINS - 1;
             Reward shown = last ? winner : AnimationUtil.randomReward(pool);
-            inv.setItem(CENTER_SLOT, AnimationUtil.buildDisplayItem(shown));
+            inv.setItem(CENTER_SLOT, AnimationUtil.buildDisplayItem(shown, plugin.getHookManager()));
 
             double progress = (double) session.getSpinCount() / TOTAL_SPINS;
             AnimationUtil.playTickSound(session.getPlayer(), progress);
@@ -89,7 +89,7 @@ public class ShufflerAnimation implements CrateAnimation {
         if (!session.isRunning() || session.isForfeited()) return;
         session.setRunning(false);
 
-        inv.setItem(CENTER_SLOT, AnimationUtil.buildDisplayItem(winner));
+        inv.setItem(CENTER_SLOT, AnimationUtil.buildDisplayItem(winner, plugin.getHookManager()));
         for (int s : RING) inv.setItem(s, AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
         AnimationUtil.playWinSound(session.getPlayer());
 

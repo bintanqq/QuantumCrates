@@ -37,10 +37,10 @@ public class FlickerAnimation implements CrateAnimation {
 
         // Phase 1: fill ALL slots with random rewards
         for (int i = 0; i < INV_SIZE; i++) {
-            inv.setItem(i, AnimationUtil.buildDisplayItem(AnimationUtil.randomReward(pool)));
+            inv.setItem(i, AnimationUtil.buildDisplayItem(AnimationUtil.randomReward(pool), plugin.getHookManager()));
         }
         // Winner always visible at center
-        inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner));
+        inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner, plugin.getHookManager()));
 
         session.getPlayer().openInventory(inv);
 
@@ -68,7 +68,7 @@ public class FlickerAnimation implements CrateAnimation {
             cursor[0]++;
 
             // Always keep winner visible
-            inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner));
+            inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner, plugin.getHookManager()));
 
             double progress = (double) cursor[0] / total;
             AnimationUtil.playTickSound(session.getPlayer(), progress);
@@ -83,7 +83,7 @@ public class FlickerAnimation implements CrateAnimation {
         session.setRunning(false);
 
         AnimationUtil.fillAll(inv);
-        inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner));
+        inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner, plugin.getHookManager()));
         AnimationUtil.playWinSound(session.getPlayer());
 
         BukkitTask close = Bukkit.getScheduler().runTaskLater(plugin, () -> {

@@ -1,6 +1,8 @@
 package me.bintanq.quantumcrates.animation;
 
 import me.bintanq.quantumcrates.model.reward.Reward;
+import me.bintanq.quantumcrates.hook.HookManager;
+import me.bintanq.quantumcrates.model.reward.Reward.RewardType;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -17,27 +19,55 @@ public final class AnimationUtil {
 
     public static final Material FILLER_MAT = Material.WHITE_STAINED_GLASS_PANE;
 
-    public static ItemStack buildDisplayItem(Reward reward) {
-        Material mat = reward.getMaterial() != null
-                ? Material.matchMaterial(reward.getMaterial().toUpperCase())
-                : null;
-        if (mat == null) mat = Material.PAPER;
 
-        ItemStack item = new ItemStack(mat);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            String name = reward.getDisplayName() != null
-                    ? reward.getDisplayName().replace("&", "\u00A7")
-                    : reward.getId();
-            meta.setDisplayName(name);
-            if (reward.getLore() != null && !reward.getLore().isEmpty()) {
-                meta.setLore(reward.getLore().stream()
-                        .map(l -> l.replace("&", "\u00A7"))
-                        .toList());
-            }
-            item.setItemMeta(meta);
+    public static ItemStack buildDisplayItem(Reward reward, HookManager hookManager) {
+        ItemStack base = null;
+
+        if (hookManager != null) {
+            base = switch (reward.getType()) {
+                case MMOITEMS -> {
+                    var h = hookManager.getMmoItemsHook();
+                    yield (h != null && h.isEnabled()) ? h.buildItem(reward) : null;
+                }
+                case ITEMSADDER -> {
+                    var h = hookManager.getItemsAdderHook();
+                    yield (h != null && h.isEnabled()) ? h.buildItem(reward) : null;
+                }
+                case ORAXEN -> {
+                    var h = hookManager.getOraxenHook();
+                    yield (h != null && h.isEnabled()) ? h.buildItem(reward) : null;
+                }
+                default -> null;
+            };
         }
-        return item;
+
+        if (base == null || base.getType().isAir()) {
+            Material mat = reward.getMaterial() != null
+                    ? Material.matchMaterial(reward.getMaterial().toUpperCase())
+                    : null;
+            if (mat == null || mat.isAir()) mat = Material.PAPER;
+            base = new ItemStack(mat);
+        } else {
+            base = base.clone();
+        }
+
+        if (reward.getDisplayName() != null && !reward.getDisplayName().isEmpty()) {
+            ItemMeta meta = base.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName(fixItalic(reward.getDisplayName()));
+                if (reward.getLore() != null && !reward.getLore().isEmpty()) {
+                    meta.setLore(reward.getLore().stream()
+                            .map(AnimationUtil::fixItalic)
+                            .toList());
+                }
+                base.setItemMeta(meta);
+            }
+        }
+        return base;
+    }
+
+    public static ItemStack buildDisplayItem(Reward reward) {
+        return buildDisplayItem(reward, null);
     }
 
     public static ItemStack filler() {
@@ -72,5 +102,12 @@ public final class AnimationUtil {
 
     public static Reward randomReward(List<Reward> rewards) {
         return rewards.get(ThreadLocalRandom.current().nextInt(rewards.size()));
+    }
+
+    private static String fixItalic(String s) {
+        if (s == null) return "";
+        String colored = s.replace("&", "\u00A7");
+        if (colored.startsWith("\u00A7")) return colored;
+        return "\u00A7r" + colored;
     }
 }

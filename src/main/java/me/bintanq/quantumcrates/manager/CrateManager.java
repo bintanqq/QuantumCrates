@@ -33,6 +33,7 @@ public class CrateManager {
     private final Object saveLock = new Object();
 
     private final ConcurrentHashMap<String, Crate> crateRegistry = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> locationIndex = new ConcurrentHashMap<>();
     private final Set<UUID> openingLock = ConcurrentHashMap.newKeySet();
     private File cratesDir;
 
@@ -44,6 +45,10 @@ public class CrateManager {
         this.rewardProcessor = rewardProcessor;
         this.logManager = logManager;
         this.keyManager = keyManager;
+    }
+
+    private String locationKey(String world, int x, int y, int z) {
+        return world + ":" + x + ":" + y + ":" + z;
     }
 
     public void loadAllCrates() {
@@ -75,10 +80,19 @@ public class CrateManager {
             }
         }
         Logger.info("Loaded &e" + loaded + " &fcrates.");
+        locationIndex.clear();
+        crateRegistry.values().forEach(c -> {
+            if (c.getLocations() != null) {
+                c.getLocations().forEach(loc ->
+                        locationIndex.put(locationKey(loc.world, (int)loc.x, (int)loc.y, (int)loc.z), c.getId()));
+            }
+        });
     }
 
     public void saveCrate(Crate crate) {
         synchronized (saveLock) {
+            locationIndex.entrySet().removeIf(e -> e.getValue().equals(crate.getId()));
+
             File file = new File(cratesDir, crate.getId() + ".json");
             try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
                 GsonProvider.getGson().toJson(crate, writer);
@@ -87,6 +101,12 @@ public class CrateManager {
                 return;
             }
             crateRegistry.put(crate.getId(), crate);
+
+            if (crate.getLocations() != null) {
+                for (Crate.SerializableLocation loc : crate.getLocations()) {
+                    locationIndex.put(locationKey(loc.world, (int)loc.x, (int)loc.y, (int)loc.z), crate.getId());
+                }
+            }
         }
     }
 
@@ -273,6 +293,15 @@ public class CrateManager {
             return;
         }
 
+        openingLock.add(player.getUniqueId());
+
+        boolean consumed = keyManager.consumeKeysBatch(player, crate, actual);
+        if (!consumed) {
+            openingLock.remove(player.getUniqueId());
+            sendOpenResultFeedback(player, OpenResult.MISSING_KEY, crateId);
+            return;
+        }
+
         final int totalToOpen = actual;
         final java.lang.ref.WeakReference<Player> playerRef = new java.lang.ref.WeakReference<>(player);
         final java.util.concurrent.atomic.AtomicInteger remaining = new java.util.concurrent.atomic.AtomicInteger(totalToOpen);
@@ -283,17 +312,26 @@ public class CrateManager {
             @Override
             public void run() {
                 Player p = playerRef.get();
-                if (p == null || !p.isOnline() || remaining.get() <= 0) {
+
+                if (p == null || !p.isOnline()) {
+                    openingLock.remove(p != null ? p.getUniqueId() : player.getUniqueId());
+                    cancel();
+                    return;
+                }
+
+                if (remaining.get() <= 0) {
+                    openingLock.remove(p.getUniqueId());
                     int success = successCount.get();
-                    if (p != null && success > 0)
+                    if (success > 0) {
                         MessageManager.send(p, "mass-open-success", "{count}", String.valueOf(success));
+                    }
                     cancel();
                     return;
                 }
 
                 int batch = Math.min(10, remaining.get());
                 for (int i = 0; i < batch; i++) {
-                    if (executeOpen(p, capturedCrateId, true)) {
+                    if (executeOpenNoKeyConsume(p, capturedCrateId)) {
                         successCount.incrementAndGet();
                     } else {
                         remaining.set(0);
@@ -368,6 +406,63 @@ public class CrateManager {
             return true;
         } finally {
             openingLock.remove(player.getUniqueId());
+        }
+    }
+
+    /**
+     * Internal — for mass open only. Keys already consumed in batch.
+     * Skips key check and consume step.
+     */
+    private boolean executeOpenNoKeyConsume(Player player, String crateId) {
+        Crate crate = crateRegistry.get(crateId);
+        if (crate == null || !crate.isEnabled()) return false;
+        if (!crate.isCurrentlyOpenable()) return false;
+
+        PlayerData data = playerDataManager.getOrEmpty(player.getUniqueId());
+
+        try {
+            RewardResult result = rewardProcessor.roll(crate, data);
+
+            boolean isRare = plugin.getRarityManager()
+                    .isAtOrAbove(result.getReward().getRarity(), crate.getPity().getRareRarityMinimum());
+
+            if (isRare || result.isPityGuaranteed()) {
+                playerDataManager.resetPity(player.getUniqueId(), crateId);
+            } else {
+                playerDataManager.incrementPity(player.getUniqueId(), crateId);
+            }
+
+            if (crate.getCooldownMs() > 0)
+                playerDataManager.setLastOpen(player.getUniqueId(), crateId);
+
+            // Mass open: deliver langsung tanpa animasi GUI
+            deliverRewardPublic(player, result);
+
+            if (result.getReward().isBroadcast()) {
+                plugin.getServer().broadcastMessage(result.getReward().getBroadcastMessage()
+                        .replace("{player}", player.getName())
+                        .replace("{reward}", result.getReward().getDisplayName())
+                        .replace("&", "\u00A7"));
+            }
+
+            org.bukkit.Location loc = player.getLocation();
+            me.bintanq.quantumcrates.log.CrateLog crateLog = new me.bintanq.quantumcrates.log.CrateLog(
+                    player.getUniqueId(), player.getName(), crateId,
+                    result.getReward().getId(), result.getReward().getDisplayName(),
+                    result.getPityAtRoll(), System.currentTimeMillis(),
+                    loc.getWorld() != null ? loc.getWorld().getName() : "unknown",
+                    loc.getX(), loc.getY(), loc.getZ());
+
+            logManager.log(crateLog);
+            me.bintanq.quantumcrates.web.WebSocketBridge.getInstance().broadcastCrateOpen(crateLog);
+
+            if (plugin.getStatsScheduler() != null)
+                plugin.getStatsScheduler().incrementOpenings();
+
+            return true;
+        } catch (Exception e) {
+            Logger.severe("executeOpenNoKeyConsume error: " + e.getMessage());
+            return false;
         }
     }
 
@@ -510,6 +605,11 @@ public class CrateManager {
         }
     }
 
+    public Crate getCrateAtLocation(String world, int x, int y, int z) {
+        String crateId = locationIndex.get(locationKey(world, x, y, z));
+        return crateId != null ? crateRegistry.get(crateId) : null;
+    }
+
     public void shutdown() { openingLock.clear(); }
 
     public Crate getCrate(String id) { return crateRegistry.get(id); }
@@ -524,6 +624,7 @@ public class CrateManager {
 
     public void removeCrate(String id) {
         synchronized (saveLock) {
+            locationIndex.entrySet().removeIf(e -> e.getValue().equals(id));
             crateRegistry.remove(id);
             File file = new File(cratesDir, id + ".json");
             if (file.exists()) file.delete();

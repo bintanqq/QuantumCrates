@@ -100,4 +100,6 @@ public interface DatabaseManager {
      * Returns total opening count for a crate (web dashboard stats).
      */
     CompletableFuture<Long> getCrateOpeningCount(String crateId);
+
+    CompletableFuture<Boolean> removeVirtualKeysBatch(UUID uuid, String keyId, int totalAmount);
 }

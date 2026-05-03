@@ -80,7 +80,7 @@ public class RouletteAnimation implements CrateAnimation {
             System.arraycopy(strip, 1, strip, 0, STRIP_LEN - 1);
             strip[STRIP_LEN - 1] = queue.isEmpty() ? AnimationUtil.randomReward(pool) : queue.poll();
             for (int i = 0; i < STRIP_LEN; i++) {
-                inv.setItem(STRIP_SLOTS[i], AnimationUtil.buildDisplayItem(strip[i]));
+                inv.setItem(STRIP_SLOTS[i], AnimationUtil.buildDisplayItem(strip[i], plugin.getHookManager()));
             }
 
             double progress = (double) session.getSpinCount() / TOTAL_SPINS;
@@ -116,7 +116,7 @@ public class RouletteAnimation implements CrateAnimation {
         AnimationUtil.fillAll(inv);
         inv.setItem(4,          AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
         inv.setItem(22,         AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
-        inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner));
+        inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner, plugin.getHookManager()));
         AnimationUtil.playWinSound(session.getPlayer());
 
         // Mirrors ExcellentCrates completionPauseTicks (40 ticks) then close & deliver

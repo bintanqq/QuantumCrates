@@ -106,11 +106,8 @@ public class CrateListener implements Listener {
     }
 
     private Crate getCrateAtBlock(Block block) {
-        String worldName = block.getWorld().getName();
-        int bx = block.getX(), by = block.getY(), bz = block.getZ();
-        return crateManager.getAllCrates().stream()
-                .filter(c -> c.hasLocationAt(worldName, bx, by, bz))
-                .findFirst()
-                .orElse(null);
+        return crateManager.getCrateAtLocation(
+                block.getWorld().getName(),
+                block.getX(), block.getY(), block.getZ());
     }
 }

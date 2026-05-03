@@ -206,7 +206,7 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
     }
 
     private void cmdDelLoc(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player)) { MessageManager.sendPlayerOnly(sender); return; }
+        if (!(sender instanceof Player player)) { MessageManager.sendPlayerOnly(sender); return; }
         if (!sender.hasPermission("quantumcrates.admin")) { MessageManager.sendNoPermission(sender); return; }
         if (args.length < 2) { MessageManager.send(sender, "usage-delloc"); return; }
 
@@ -216,33 +216,68 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
             MessageManager.send(sender, "delloc-no-location", "{crate}", crate.getId()); return;
         }
 
-        if (args.length >= 3) {
-            // Remove by index
-            int idx;
-            try { idx = Integer.parseInt(args[2]); }
-            catch (NumberFormatException e) {
-                MessageManager.send(sender, "delloc-index-invalid"); return;
-            }
-            if (!crate.removeLocation(idx)) {
-                MessageManager.send(sender, "delloc-index-invalid"); return;
-            }
-        } else {
-            // Remove all locations
-            crate.setLocations(new java.util.ArrayList<>());
+        List<Crate.SerializableLocation> locs = crate.getLocations();
+
+        if (locs.size() == 1 && args.length < 3) {
+            performDelLoc(player, crate, 0);
+            return;
         }
 
+        if (args.length < 3) {
+            sender.sendMessage(MessageManager.color("&8&l━━━ &e" + crate.getId() + " &7Locations &8━━━"));
+            for (int i = 0; i < locs.size(); i++) {
+                Crate.SerializableLocation loc = locs.get(i);
+                var component = net.kyori.adventure.text.Component.text()
+                        .append(net.kyori.adventure.text.Component.text("  [" + i + "] ")
+                                .color(net.kyori.adventure.text.format.NamedTextColor.GOLD))
+                        .append(net.kyori.adventure.text.Component.text(
+                                        loc.world + " " + (int)loc.x + ", " + (int)loc.y + ", " + (int)loc.z)
+                                .color(net.kyori.adventure.text.format.NamedTextColor.GRAY))
+                        .append(net.kyori.adventure.text.Component.text(" [Click to remove]")
+                                .color(net.kyori.adventure.text.format.NamedTextColor.RED)
+                                .decorate(net.kyori.adventure.text.format.TextDecoration.ITALIC)
+                                .clickEvent(net.kyori.adventure.text.event.ClickEvent.runCommand(
+                                        "/qc delloc " + crate.getId() + " " + i))
+                                .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
+                                        net.kyori.adventure.text.Component.text("Remove location " + i)
+                                                .color(net.kyori.adventure.text.format.NamedTextColor.RED))))
+                        .build();
+                plugin.adventure().player(player).sendMessage(component);
+            }
+            sender.sendMessage(MessageManager.color("&7Or: &e/qc delloc " + crate.getId() + " all &7to remove all"));
+            return;
+        }
+
+        String indexArg = args[2];
+        if (indexArg.equalsIgnoreCase("all")) {
+            crate.setLocations(new java.util.ArrayList<>());
+            crateManager().saveCrate(crate);
+            if (plugin.getHologramManager() != null) plugin.getHologramManager().removeHologram(crate.getId());
+            if (plugin.getParticleManager() != null) plugin.getParticleManager().stopIdleParticles(crate.getId());
+            MessageManager.send(sender, "delloc-success", "{crate}", crate.getId());
+            return;
+        }
+
+        int idx;
+        try { idx = Integer.parseInt(indexArg); }
+        catch (NumberFormatException e) {
+            MessageManager.send(sender, "delloc-index-invalid"); return;
+        }
+        performDelLoc(player, crate, idx);
+    }
+
+    private void performDelLoc(Player player, Crate crate, int idx) {
+        if (!crate.removeLocation(idx)) {
+            MessageManager.send(player, "delloc-index-invalid"); return;
+        }
         crateManager().saveCrate(crate);
-
         if (plugin.getHologramManager() != null) plugin.getHologramManager().removeHologram(crate.getId());
-        if (plugin.getParticleManager()  != null) plugin.getParticleManager().stopIdleParticles(crate.getId());
-
-        // Re-spawn remaining holograms/particles
+        if (plugin.getParticleManager() != null) plugin.getParticleManager().stopIdleParticles(crate.getId());
         if (!crate.getLocations().isEmpty()) {
             if (plugin.getHologramManager() != null) plugin.getHologramManager().spawnHologram(crate);
-            if (plugin.getParticleManager()  != null) plugin.getParticleManager().startIdleParticles(crate);
+            if (plugin.getParticleManager() != null) plugin.getParticleManager().startIdleParticles(crate);
         }
-
-        MessageManager.send(sender, "delloc-success", "{crate}", crate.getId());
+        MessageManager.send(player, "delloc-success", "{crate}", crate.getId());
     }
 
     private void cmdPity(CommandSender sender, String[] args) {

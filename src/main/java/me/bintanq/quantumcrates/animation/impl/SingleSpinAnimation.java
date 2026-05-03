@@ -73,7 +73,7 @@ public class SingleSpinAnimation implements CrateAnimation {
             strip[0] = last ? winner : AnimationUtil.randomReward(pool);
 
             for (int r = 0; r < 5; r++) {
-                inv.setItem(slots[r], AnimationUtil.buildDisplayItem(strip[r]));
+                inv.setItem(slots[r], AnimationUtil.buildDisplayItem(strip[r], plugin.getHookManager()));
             }
 
             double progress = (double) spin / TOTAL_SPINS;
@@ -104,7 +104,7 @@ public class SingleSpinAnimation implements CrateAnimation {
 
         for (int r = 0; r < slots.length; r++) {
             inv.setItem(slots[r], r == displayRow
-                    ? AnimationUtil.buildDisplayItem(winner)
+                    ? AnimationUtil.buildDisplayItem(winner, plugin.getHookManager())
                     : AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
         }
         AnimationUtil.playWinSound(session.getPlayer());

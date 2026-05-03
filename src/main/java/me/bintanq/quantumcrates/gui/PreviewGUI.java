@@ -130,11 +130,11 @@ public class PreviewGUI {
         ItemMeta meta = display.getItemMeta();
         if (meta == null) return display;
 
-        // RarityManager provides color — no hardcoded switch
         String rarityColor = plugin.getRarityManager().getColor(reward.getRarity());
-        meta.setDisplayName(reward.getDisplayName() != null
+        String displayName = reward.getDisplayName() != null && !reward.getDisplayName().isEmpty()
                 ? colorize(reward.getDisplayName())
-                : rarityColor + reward.getId());
+                : rarityColor + reward.getId();
+        meta.setDisplayName(displayName.startsWith("\u00A7") ? displayName : "\u00A7r" + displayName);
 
         List<String> lore = new ArrayList<>();
 

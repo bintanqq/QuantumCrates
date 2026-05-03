@@ -65,7 +65,7 @@ public class BoundaryAnimation implements CrateAnimation {
 
             boolean last = session.getSpinCount() >= TOTAL_SPINS - 1;
             Reward shown = last ? winner : AnimationUtil.randomReward(pool);
-            inv.setItem(BORDER[headPos[0]], AnimationUtil.buildDisplayItem(shown));
+            inv.setItem(BORDER[headPos[0]], AnimationUtil.buildDisplayItem(shown, plugin.getHookManager()));
 
             double progress = (double) session.getSpinCount() / TOTAL_SPINS;
             AnimationUtil.playTickSound(session.getPlayer(), progress);
@@ -96,7 +96,7 @@ public class BoundaryAnimation implements CrateAnimation {
         session.setRunning(false);
 
         for (int s : BORDER) inv.setItem(s, AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
-        inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner));
+        inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner, plugin.getHookManager()));
         AnimationUtil.playWinSound(session.getPlayer());
 
         BukkitTask close = Bukkit.getScheduler().runTaskLater(plugin, () -> {
