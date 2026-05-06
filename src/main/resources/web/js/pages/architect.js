@@ -345,7 +345,7 @@ const Architect = {
       while (Object.keys(State.crates).includes('newcrate' + seq)) seq++;
       const id    = 'newcrate' + seq;
       const midId = State.rarities[Math.floor(State.rarities.length / 2)]?.id || 'RARE';
-      const crate = { id, displayName: '&fNew Crate', enabled: true, cooldownMs: 0, massOpenEnabled: true, massOpenLimit: 64, requiredKeys: [{ keyId: 'example_key', amount: 1, type: 'VIRTUAL' }], rewards: [], pity: { enabled: false, threshold: 100, softPityStart: 80, rareRarityMinimum: midId, bonusChancePerOpen: 2 }, preview: { sortOrder: 'RARITY_DESC', showChance: true, showPity: true, showKeyBalance: true, showActualItem: true } };
+      const crate = { id, displayName: '&fNew Crate', enabled: true, cooldownMs: 0, massOpenEnabled: true, massOpenLimit: 64, guiAnimationSpeed: 1.0, particleAnimationSpeed: 1.0, openSound: 'BLOCK_NOTE_BLOCK_HAT', winSound: 'UI_TOAST_CHALLENGE_COMPLETE', requiredKeys: [{ keyId: id, amount: 1, type: 'VIRTUAL' }], rewards: [], pity: { enabled: false, threshold: 100, softPityStart: 80, rareRarityMinimum: midId, bonusChancePerOpen: 2 }, preview: { sortOrder: 'RARITY_DESC', showChance: true, showPity: true, showKeyBalance: true, showActualItem: true } };
       State.setCrate(crate);
       State.currentCrateId = id;
       this.dirty = true;
@@ -447,10 +447,30 @@ const CrateSettingsModal = {
           </div>
 
           <div style="border-top:1px solid var(--border);padding-top:10px">
-            <div class="section-label" style="margin-bottom:7px">GUI ANIMATION</div>
-            <div class="field-group">
-              <label class="field-label">Opening Animation Style</label>
-              <select class="field-input" id="csGuiAnimation">${['ROULETTE','SHUFFLER','BOUNDARY','SINGLE_SPIN','FLICKER'].map(t=>`<option value="${t}" ${(crate.guiAnimation||'ROULETTE')===t?'selected':''}>${t.replace(/_/g,' ')}</option>`).join('')}</select>
+            <div class="section-label" style="margin-bottom:7px">ANIMATION & SOUND</div>
+            <div class="field-row" style="margin-bottom:7px">
+              <div class="field-group">
+                <label class="field-label">Opening Animation Style</label>
+                <select class="field-input" id="csGuiAnimation">${['ROULETTE','SHUFFLER','BOUNDARY','SINGLE_SPIN','FLICKER'].map(t=>`<option value="${t}" ${(crate.guiAnimation||'ROULETTE')===t?'selected':''}>${t.replace(/_/g,' ')}</option>`).join('')}</select>
+              </div>
+              <div class="field-group">
+                <label class="field-label">GUI Speed</label>
+                <input class="field-input" type="number" id="csGuiAnimSpeed" value="${crate.guiAnimationSpeed ?? 1.0}" min="0.1" max="10.0" step="0.1"/>
+              </div>
+              <div class="field-group">
+                <label class="field-label">Particle Speed</label>
+                <input class="field-input" type="number" id="csParticleAnimSpeed" value="${crate.particleAnimationSpeed ?? 1.0}" min="0.1" max="10.0" step="0.1"/>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">Tick Sound (Open)</label>
+                <input class="field-input" type="text" id="csOpenSound" value="${crate.openSound || 'BLOCK_NOTE_BLOCK_HAT'}" placeholder="BLOCK_NOTE_BLOCK_HAT"/>
+              </div>
+              <div class="field-group">
+                <label class="field-label">Win Sound</label>
+                <input class="field-input" type="text" id="csWinSound" value="${crate.winSound || 'UI_TOAST_CHALLENGE_COMPLETE'}" placeholder="UI_TOAST_CHALLENGE_COMPLETE"/>
+              </div>
             </div>
           </div>
           <div style="border-top:1px solid var(--border);padding-top:10px">
@@ -505,6 +525,10 @@ const CrateSettingsModal = {
       const openTypeEl     = Utils.qs('#csOpenType');
       const openParticleEl = Utils.qs('#csOpenParticle');
       const guiAnimEl      = Utils.qs('#csGuiAnimation');
+      const guiAnimSpeedEl = Utils.qs('#csGuiAnimSpeed');
+      const partAnimSpeedEl= Utils.qs('#csParticleAnimSpeed');
+      const openSoundEl    = Utils.qs('#csOpenSound');
+      const winSoundEl     = Utils.qs('#csWinSound');
 
       if (!idEl || !nameEl) { toast('Modal not ready', 'error'); return; }
 
@@ -521,6 +545,10 @@ const CrateSettingsModal = {
       c.idleAnimation = { type: idleTypeEl?.value || 'HELIX', particle: idleParticleEl?.value || 'HAPPY_VILLAGER' };
       c.openAnimation = { type: openTypeEl?.value || 'SIMPLE',  particle: openParticleEl?.value || 'HAPPY_VILLAGER' };
       c.guiAnimation  = guiAnimEl?.value || 'ROULETTE';
+      c.guiAnimationSpeed = parseFloat(guiAnimSpeedEl?.value) || 1.0;
+      c.particleAnimationSpeed = parseFloat(partAnimSpeedEl?.value) || 1.0;
+      c.openSound = openSoundEl?.value || 'BLOCK_NOTE_BLOCK_HAT';
+      c.winSound = winSoundEl?.value || 'UI_TOAST_CHALLENGE_COMPLETE';
       c.accessDeniedKnockback = !!this._crate.accessDeniedKnockback;
       c.knockbackStrength = parseFloat(Utils.qs('#csKnockbackStrength')?.value) || 0.6;
 

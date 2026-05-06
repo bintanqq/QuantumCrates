@@ -67,7 +67,7 @@ public class RouletteAnimation implements CrateAnimation {
         final int[]  stepSpins = {0};
 
         // Initialise session tick interval to first step
-        session.setTickInterval(SPIN_STEPS[0][1]);
+        session.setTickInterval((int) Math.max(1, SPIN_STEPS[0][1] / session.getCrate().getGuiAnimationSpeed()));
 
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (!session.isRunning()) return;
@@ -84,7 +84,7 @@ public class RouletteAnimation implements CrateAnimation {
             }
 
             double progress = (double) session.getSpinCount() / TOTAL_SPINS;
-            AnimationUtil.playTickSound(session.getPlayer(), progress);
+            AnimationUtil.playTickSound(session.getPlayer(), progress, session.getCrate().getOpenSound());
 
             session.advanceSpin();
             stepSpins[0]++;
@@ -94,7 +94,7 @@ public class RouletteAnimation implements CrateAnimation {
                 stepIdx[0]++;
                 stepSpins[0] = 0;
                 if (stepIdx[0] < SPIN_STEPS.length) {
-                    session.setTickInterval(SPIN_STEPS[stepIdx[0]][1]);
+                    session.setTickInterval((int) Math.max(1, SPIN_STEPS[stepIdx[0]][1] / session.getCrate().getGuiAnimationSpeed()));
                 }
             }
 
@@ -117,7 +117,7 @@ public class RouletteAnimation implements CrateAnimation {
         inv.setItem(4,          AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
         inv.setItem(22,         AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
         inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner, plugin.getHookManager()));
-        AnimationUtil.playWinSound(session.getPlayer());
+        AnimationUtil.playWinSound(session.getPlayer(), session.getCrate().getWinSound());
 
         // Mirrors ExcellentCrates completionPauseTicks (40 ticks) then close & deliver
         BukkitTask close = Bukkit.getScheduler().runTaskLater(plugin, () -> {

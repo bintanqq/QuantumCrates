@@ -594,7 +594,11 @@ public class CrateManager {
           "massOpenEnabled": true,
           "massOpenLimit": 64,
           "enabled": true,
-          "guiAnimation": "ROULETTE"
+          "guiAnimation": "ROULETTE",
+          "guiAnimationSpeed": 1.0,
+          "particleAnimationSpeed": 1.0,
+          "openSound": "BLOCK_NOTE_BLOCK_HAT",
+          "winSound": "UI_TOAST_CHALLENGE_COMPLETE"
         }
         """.formatted(lowestRarity, midRarity, pityMinRarity, highestRarity, pityMinRarity);
 

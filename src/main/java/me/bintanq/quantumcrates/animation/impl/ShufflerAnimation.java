@@ -44,7 +44,7 @@ public class ShufflerAnimation implements CrateAnimation {
         for (int s : RING) inv.setItem(s, AnimationUtil.filler(Material.YELLOW_STAINED_GLASS_PANE));
 
         session.getPlayer().openInventory(inv);
-        session.setTickInterval(SPIN_STEPS[0][1]);
+        session.setTickInterval((int) Math.max(1, SPIN_STEPS[0][1] / session.getCrate().getGuiAnimationSpeed()));
 
         final int[] stepIdx   = {0};
         final int[] stepSpins = {0};
@@ -62,7 +62,7 @@ public class ShufflerAnimation implements CrateAnimation {
             inv.setItem(CENTER_SLOT, AnimationUtil.buildDisplayItem(shown, plugin.getHookManager()));
 
             double progress = (double) session.getSpinCount() / TOTAL_SPINS;
-            AnimationUtil.playTickSound(session.getPlayer(), progress);
+            AnimationUtil.playTickSound(session.getPlayer(), progress, session.getCrate().getOpenSound());
 
             session.advanceSpin();
             stepSpins[0]++;
@@ -72,7 +72,7 @@ public class ShufflerAnimation implements CrateAnimation {
                 stepIdx[0]++;
                 stepSpins[0] = 0;
                 if (stepIdx[0] < SPIN_STEPS.length)
-                    session.setTickInterval(SPIN_STEPS[stepIdx[0]][1]);
+                    session.setTickInterval((int) Math.max(1, SPIN_STEPS[stepIdx[0]][1] / session.getCrate().getGuiAnimationSpeed()));
             }
 
             session.advanceTick();
@@ -91,7 +91,7 @@ public class ShufflerAnimation implements CrateAnimation {
 
         inv.setItem(CENTER_SLOT, AnimationUtil.buildDisplayItem(winner, plugin.getHookManager()));
         for (int s : RING) inv.setItem(s, AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
-        AnimationUtil.playWinSound(session.getPlayer());
+        AnimationUtil.playWinSound(session.getPlayer(), session.getCrate().getWinSound());
 
         BukkitTask close = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (session.isForfeited()) return;

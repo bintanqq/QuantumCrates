@@ -52,7 +52,7 @@ public class SingleSpinAnimation implements CrateAnimation {
         for (int r = 0; r < 5; r++) strip[r] = AnimationUtil.randomReward(pool);
 
         session.getPlayer().openInventory(inv);
-        session.setTickInterval(SPIN_STEPS[0][1]);
+        session.setTickInterval((int) Math.max(1, SPIN_STEPS[0][1] / session.getCrate().getGuiAnimationSpeed()));
 
         final int[] stepIdx   = {0};
         final int[] stepSpins = {0};
@@ -77,7 +77,7 @@ public class SingleSpinAnimation implements CrateAnimation {
             }
 
             double progress = (double) spin / TOTAL_SPINS;
-            AnimationUtil.playTickSound(session.getPlayer(), progress);
+            AnimationUtil.playTickSound(session.getPlayer(), progress, session.getCrate().getOpenSound());
 
             session.advanceSpin();
             stepSpins[0]++;
@@ -86,7 +86,7 @@ public class SingleSpinAnimation implements CrateAnimation {
                 stepIdx[0]++;
                 stepSpins[0] = 0;
                 if (stepIdx[0] < SPIN_STEPS.length)
-                    session.setTickInterval(SPIN_STEPS[stepIdx[0]][1]);
+                    session.setTickInterval((int) Math.max(1, SPIN_STEPS[stepIdx[0]][1] / session.getCrate().getGuiAnimationSpeed()));
             }
             session.advanceTick();
 
@@ -107,7 +107,7 @@ public class SingleSpinAnimation implements CrateAnimation {
                     ? AnimationUtil.buildDisplayItem(winner, plugin.getHookManager())
                     : AnimationUtil.filler(Material.LIME_STAINED_GLASS_PANE));
         }
-        AnimationUtil.playWinSound(session.getPlayer());
+        AnimationUtil.playWinSound(session.getPlayer(), session.getCrate().getWinSound());
 
         BukkitTask close = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (session.isForfeited()) return;

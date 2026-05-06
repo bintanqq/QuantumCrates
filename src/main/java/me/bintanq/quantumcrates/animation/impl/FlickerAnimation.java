@@ -71,9 +71,9 @@ public class FlickerAnimation implements CrateAnimation {
             inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner, plugin.getHookManager()));
 
             double progress = (double) cursor[0] / total;
-            AnimationUtil.playTickSound(session.getPlayer(), progress);
+            AnimationUtil.playTickSound(session.getPlayer(), progress, session.getCrate().getOpenSound());
 
-        }, 0L, TICK_INTERVAL);
+        }, 0L, (long) Math.max(1L, 2L / session.getCrate().getGuiAnimationSpeed()));
 
         session.addTask(task);
     }
@@ -84,7 +84,7 @@ public class FlickerAnimation implements CrateAnimation {
 
         AnimationUtil.fillAll(inv);
         inv.setItem(WINNER_SLOT, AnimationUtil.buildDisplayItem(winner, plugin.getHookManager()));
-        AnimationUtil.playWinSound(session.getPlayer());
+        AnimationUtil.playWinSound(session.getPlayer(), session.getCrate().getWinSound());
 
         BukkitTask close = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (session.isForfeited()) return;

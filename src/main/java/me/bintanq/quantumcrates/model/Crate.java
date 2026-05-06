@@ -93,6 +93,18 @@ public class Crate {
     @SerializedName("guiAnimation")
     private GuiAnimationType guiAnimation = GuiAnimationType.ROULETTE;
 
+    @SerializedName("guiAnimationSpeed")
+    private double guiAnimationSpeed = 1.0;
+
+    @SerializedName("particleAnimationSpeed")
+    private double particleAnimationSpeed = 1.0;
+
+    @SerializedName("openSound")
+    private String openSound = "BLOCK_NOTE_BLOCK_HAT";
+
+    @SerializedName("winSound")
+    private String winSound = "UI_TOAST_CHALLENGE_COMPLETE";
+
     public AnimationConfig getIdleAnimation() { return idleAnimation != null ? idleAnimation : new AnimationConfig(); }
     public AnimationConfig getOpenAnimation() { return openAnimation != null ? openAnimation : new AnimationConfig(); }
 
@@ -316,6 +328,18 @@ public class Crate {
 
     public GuiAnimationType getGuiAnimation() { return guiAnimation != null ? guiAnimation : GuiAnimationType.ROULETTE; }
     public void setGuiAnimation(GuiAnimationType guiAnimation) { this.guiAnimation = guiAnimation; }
+
+    public double getGuiAnimationSpeed() { return guiAnimationSpeed > 0 ? guiAnimationSpeed : 1.0; }
+    public void setGuiAnimationSpeed(double guiAnimationSpeed) { this.guiAnimationSpeed = guiAnimationSpeed; }
+
+    public double getParticleAnimationSpeed() { return particleAnimationSpeed > 0 ? particleAnimationSpeed : 1.0; }
+    public void setParticleAnimationSpeed(double particleAnimationSpeed) { this.particleAnimationSpeed = particleAnimationSpeed; }
+
+    public String getOpenSound() { return openSound != null ? openSound : "BLOCK_NOTE_BLOCK_HAT"; }
+    public void setOpenSound(String openSound) { this.openSound = openSound; }
+
+    public String getWinSound() { return winSound != null ? winSound : "UI_TOAST_CHALLENGE_COMPLETE"; }
+    public void setWinSound(String winSound) { this.winSound = winSound; }
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }

@@ -90,14 +90,24 @@ public final class AnimationUtil {
         for (int i = 0; i < inv.getSize(); i++) inv.setItem(i, f);
     }
 
-    public static void playTickSound(Player player, double progress) {
+    public static void playTickSound(Player player, double progress, String soundName) {
         float pitch = (float) (0.5 + progress * 1.5);
         pitch = Math.max(0.5f, Math.min(2.0f, pitch));
-        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.6f, pitch);
+        try {
+            Sound sound = Sound.valueOf(soundName.toUpperCase());
+            player.playSound(player.getLocation(), sound, 0.6f, pitch);
+        } catch (Exception e) {
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.6f, pitch);
+        }
     }
 
-    public static void playWinSound(Player player) {
-        player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+    public static void playWinSound(Player player, String soundName) {
+        try {
+            Sound sound = Sound.valueOf(soundName.toUpperCase());
+            player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
+        } catch (Exception e) {
+            player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+        }
     }
 
     public static Reward randomReward(List<Reward> rewards) {

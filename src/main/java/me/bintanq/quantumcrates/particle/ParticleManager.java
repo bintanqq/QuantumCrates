@@ -47,7 +47,8 @@ public class ParticleManager {
             if (type == AnimationType.NONE) continue;
 
             Particle particle    = parseParticle(cfg.getParticle(), FALLBACK_IDLE);
-            long     tickInterval = getTickInterval(type);
+            long     baseTickInterval = getTickInterval(type);
+            long     tickInterval = Math.max(1L, (long) (baseTickInterval / crate.getParticleAnimationSpeed()));
             int      maxSteps    = getMaxSteps(type);
 
             tickCountMap.put(key, 0L);
@@ -103,7 +104,8 @@ public class ParticleManager {
 
         Particle particle  = parseParticle(cfg.getParticle(), FALLBACK_OPEN);
         int      maxSteps  = getMaxSteps(type);
-        long     tickInter = getTickInterval(type);
+        long     baseTickInter = getTickInterval(type);
+        long     tickInter = Math.max(1L, (long) (baseTickInter / crate.getParticleAnimationSpeed()));
 
         Location origin = playerLoc.clone().add(0.5, 0, 0.5);
 
