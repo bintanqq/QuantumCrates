@@ -4,7 +4,7 @@
 # ║                                                                          ║
 # ║   QUICK START                                                            ║
 # ║     1. Set web.secret-token to a long, random string.                   ║
-# ║     2. Set web.hostname to your server IP, domain, or "auto".           ║
+# ║     2. Set web.hostname to your Server IP (Use 'ping' to verify).       ║
 # ║     3. Restart the server, then run /qc web in-game.                    ║
 # ╚══════════════════════════════════════════════════════════════════════════╝
 
@@ -94,13 +94,20 @@ holograms:
 web:
   enabled: true
 
-  # The IP or domain shown in the magic link printed by /qc web.
-  # "auto"  → QuantumCrates resolves your server's local IPv4 automatically.
-  # ""      → Falls back to "localhost" (only useful for local testing).
-  # "my.domain.com" → Use your actual public IP or domain.
+  # The IP or domain used for the dashboard link (/qc web).
+  # IMPORTANT: Many users get confused here. Enter your server's REAL IP address.
+  #
+  # HOW TO SET:
+  # 1. Open CMD or Terminal on your computer.
+  # 2. Type: ping [your-server-domain] (Example: ping play.myserver.com)
+  # 3. Copy the numeric IP that appears (e.g., 103.12.34.56) and paste it below.
+  #
+  # NOTES:
+  # "auto" -> Attempts to find the IP automatically (Fixed to be more accurate).
+  # ""     -> Falls back to "localhost" (Only for local testing).
   hostname: "auto"
 
-  # Port the embedded web server listens on. Default: 7420.
+  # Port the embedded web server listens on. Default: 7420. Open New Port in Network on your panel
   port: 7420
 
   # IMPORTANT: Change this before first run. Use a random 32+ character string.

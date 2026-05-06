@@ -35,6 +35,7 @@ public class WebServer {
 
     private Algorithm   jwtAlgorithm;
     private JWTVerifier jwtVerifier;
+    private String      cachedPublicIp = null;
 
     public WebServer(QuantumCrates plugin) {
         this.plugin       = plugin;
@@ -137,6 +138,7 @@ public class WebServer {
 
         Thread t = new Thread(() -> {
             try {
+                cachedPublicIp = fetchPublicIp();
                 app.start(port);
                 Logger.info("&aWeb Dashboard running on port &e" + port);
                 Logger.info("&7Use &a/qc web &7in-game to get your access link.");
@@ -826,6 +828,8 @@ public class WebServer {
     }
 
     public String resolveAutoHostname() {
+        if (cachedPublicIp != null) return cachedPublicIp;
+
         try {
             java.util.Enumeration<java.net.NetworkInterface> ifaces =
                     java.net.NetworkInterface.getNetworkInterfaces();
@@ -845,6 +849,17 @@ public class WebServer {
             Logger.warn("[Web] Auto hostname resolution failed, falling back to 'localhost': " + e.getMessage());
             return "localhost";
         }
+    }
+
+    private String fetchPublicIp() {
+        try {
+            java.net.URL url = new java.net.URL("https://checkip.amazonaws.com");
+            try (java.io.BufferedReader in = new java.io.BufferedReader(new java.io.InputStreamReader(url.openStream()))) {
+                String ip = in.readLine();
+                if (ip != null && !ip.trim().isEmpty()) return ip.trim();
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     public void broadcast(WebSocketBridge.EventType type, Map<String, Object> payload) {
