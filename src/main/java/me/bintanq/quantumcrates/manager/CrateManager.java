@@ -35,6 +35,8 @@ public class CrateManager {
     private final ConcurrentHashMap<String, Crate> crateRegistry = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> locationIndex = new ConcurrentHashMap<>();
     private final Set<UUID> openingLock = ConcurrentHashMap.newKeySet();
+    private final ConcurrentHashMap<UUID, ConcurrentHashMap<String, Long>> rateLimitTracker
+            = new ConcurrentHashMap<>();
     private File cratesDir;
 
     public CrateManager(QuantumCrates plugin, PlayerDataManager playerDataManager,
@@ -129,6 +131,10 @@ public class CrateManager {
             changes.add("massOpen " + before.isMassOpenEnabled() + " → " + after.isMassOpenEnabled());
         if (before.getMassOpenLimit() != after.getMassOpenLimit())
             changes.add("massOpenLimit " + before.getMassOpenLimit() + " → " + after.getMassOpenLimit());
+        if (before.getOpenRateLimit() != after.getOpenRateLimit())
+            changes.add("openRateLimit " + before.getOpenRateLimit() + " → " + after.getOpenRateLimit());
+        if (before.getLifetimeOpenLimit() != after.getLifetimeOpenLimit())
+            changes.add("lifetimeOpenLimit " + before.getLifetimeOpenLimit() + " → " + after.getLifetimeOpenLimit());
         if (before.isAccessDeniedKnockback() != after.isAccessDeniedKnockback())
             changes.add("knockback " + before.isAccessDeniedKnockback() + " → " + after.isAccessDeniedKnockback());
         if (Double.compare(before.getKnockbackStrength(), after.getKnockbackStrength()) != 0)
@@ -232,7 +238,8 @@ public class CrateManager {
 
     public enum OpenResult {
         SUCCESS, NOT_FOUND, DISABLED, NOT_SCHEDULED,
-        ON_COOLDOWN, MISSING_KEY, ALREADY_OPENING
+        ON_COOLDOWN, MISSING_KEY, ALREADY_OPENING,
+        RATE_LIMITED, LIFETIME_LIMIT_REACHED
     }
 
     public OpenResult canOpen(Player player, String crateId) {
@@ -251,6 +258,21 @@ public class CrateManager {
             return OpenResult.ON_COOLDOWN;
 
         if (!keyManager.hasRequiredKeys(player, crate)) return OpenResult.MISSING_KEY;
+        if (crate.getOpenRateLimit() > 0) {
+            long minInterval = 1000L / crate.getOpenRateLimit();
+            ConcurrentHashMap<String, Long> playerMap = rateLimitTracker
+                    .computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>());
+            Long last = playerMap.get(crateId);
+            if (last != null && System.currentTimeMillis() - last < minInterval) {
+                return OpenResult.RATE_LIMITED;
+            }
+        }
+
+        if (crate.getLifetimeOpenLimit() > 0) {
+            PlayerData data2 = playerDataManager.getOrEmpty(player.getUniqueId());
+            if (data2.getLifetimeOpens(crateId) >= crate.getLifetimeOpenLimit())
+                return OpenResult.LIFETIME_LIMIT_REACHED;
+        }
         return OpenResult.SUCCESS;
     }
 
@@ -280,6 +302,17 @@ public class CrateManager {
 
         int maxAllowed = crate.getMassOpenLimit();
         int canPerform = keyManager.countPossibleOpens(player, crate);
+
+        if (crate.getLifetimeOpenLimit() > 0) {
+            int used = playerDataManager.getLifetimeOpens(player.getUniqueId(), crateId);
+            int remaining = crate.getLifetimeOpenLimit() - used;
+            if (remaining <= 0) {
+                sendOpenResultFeedback(player, OpenResult.LIFETIME_LIMIT_REACHED, crateId);
+                return;
+            }
+            canPerform = Math.min(canPerform, remaining);
+        }
+
         int actual = (count <= 0) ? canPerform : Math.min(count, canPerform);
         if (maxAllowed > 0) actual = Math.min(actual, maxAllowed);
 
@@ -377,6 +410,13 @@ public class CrateManager {
             if (crate.getCooldownMs() > 0)
                 playerDataManager.setLastOpen(player.getUniqueId(), crateId);
 
+            if (crate.getOpenRateLimit() > 0) {
+                rateLimitTracker
+                        .computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>())
+                        .put(crateId, System.currentTimeMillis());
+            }
+            playerDataManager.incrementLifetimeOpens(player.getUniqueId(), crateId);
+
             plugin.getAnimationManager().startAnimation(player, crate, result);
 
             if (plugin.getParticleManager() != null)
@@ -434,6 +474,7 @@ public class CrateManager {
 
             if (crate.getCooldownMs() > 0)
                 playerDataManager.setLastOpen(player.getUniqueId(), crateId);
+            playerDataManager.incrementLifetimeOpens(player.getUniqueId(), crateId);
 
             // Mass open: deliver langsung tanpa animasi GUI
             deliverRewardPublic(player, result);
@@ -508,6 +549,12 @@ public class CrateManager {
                 MessageManager.send(player, "key-not-found", "{key}", missingKeyId);
             }
             case ALREADY_OPENING -> MessageManager.send(player, "already-opening");
+            case RATE_LIMITED        -> MessageManager.send(player, "rate-limited");
+            case LIFETIME_LIMIT_REACHED -> {
+                Crate crate = crateRegistry.get(crateId);
+                MessageManager.send(player, "lifetime-limit-reached",
+                        "{limit}", String.valueOf(crate != null ? crate.getLifetimeOpenLimit() : 0));
+            }
             default              -> MessageManager.send(player, "crate-not-found", "{crate}", crateId);
         }
     }
@@ -593,6 +640,8 @@ public class CrateManager {
           },
           "massOpenEnabled": true,
           "massOpenLimit": 64,
+          "openRateLimit": 0,
+          "lifetimeOpenLimit": 0,
           "enabled": true,
           "guiAnimation": "ROULETTE",
           "guiAnimationSpeed": 1.0,

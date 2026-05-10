@@ -93,6 +93,14 @@ public class PlayerDataManager {
         mutateData(uuid, data -> data.setLastOpen(crateId, System.currentTimeMillis()));
     }
 
+    public void incrementLifetimeOpens(UUID uuid, String crateId) {
+        mutateData(uuid, data -> data.incrementLifetimeOpens(crateId));
+    }
+
+    public int getLifetimeOpens(UUID uuid, String crateId) {
+        return getOrEmpty(uuid).getLifetimeOpens(crateId);
+    }
+
     public void flushAll() {
         List<PlayerData> dirty = new ArrayList<>();
         java.util.Iterator<UUID> iter = dirtySet.keySet().iterator();

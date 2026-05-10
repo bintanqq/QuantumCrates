@@ -408,6 +408,17 @@ const CrateSettingsModal = {
             <div class="field-group"><label class="field-label">Mass Open Limit</label><input class="field-input" type="number" id="csMassLimit" value="${crate.massOpenLimit??64}" min="-1"/></div>
           </div>
 
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label">Rate Limit <span style="color:var(--text3)">(opens/sec, 0=off)</span></label>
+              <input class="field-input no-spinner" type="number" id="csRateLimit" value="${crate.openRateLimit ?? 0}" min="0" max="100"/>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Lifetime Limit <span style="color:var(--text3)">(per player, 0=∞)</span></label>
+              <input class="field-input no-spinner" type="number" id="csLifetimeLimit" value="${crate.lifetimeOpenLimit ?? 0}" min="0"/>
+            </div>
+          </div>
+
           <!-- Location (read-only display + clear button) -->
           <div class="field-group">
             <label class="field-label">Location <span style="color:var(--text3);font-weight:400">(set via /qc setloc in-game)</span></label>
@@ -551,6 +562,8 @@ const CrateSettingsModal = {
       c.winSound = winSoundEl?.value || 'UI_TOAST_CHALLENGE_COMPLETE';
       c.accessDeniedKnockback = !!this._crate.accessDeniedKnockback;
       c.knockbackStrength = parseFloat(Utils.qs('#csKnockbackStrength')?.value) || 0.6;
+      c.openRateLimit     = parseInt(Utils.qs('#csRateLimit')?.value)     || 0;
+      c.lifetimeOpenLimit = parseInt(Utils.qs('#csLifetimeLimit')?.value) || 0;
 
       State.setCrate(c);
       State.markDirty('crate', { id: c.id });

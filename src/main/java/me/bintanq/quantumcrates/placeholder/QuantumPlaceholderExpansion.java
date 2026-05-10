@@ -111,6 +111,21 @@ public class QuantumPlaceholderExpansion extends PlaceholderExpansion {
             return String.format("%.2f", crate.getTotalWeight());
         }
 
+        // %quantumcrates_lifetime_<crateId>%
+        if (params.startsWith("lifetime_")) {
+            String crateId = params.substring(9);
+            return String.valueOf(plugin.getPlayerDataManager()
+                    .getLifetimeOpens(player.getUniqueId(), crateId));
+        }
+
+// %quantumcrates_lifetime_max_<crateId>%
+        if (params.startsWith("lifetime_max_")) {
+            String crateId = params.substring(13);
+            Crate crate = crateManager.getCrate(crateId);
+            if (crate == null) return "0";
+            return String.valueOf(crate.getLifetimeOpenLimit());
+        }
+
         return null;
     }
 }

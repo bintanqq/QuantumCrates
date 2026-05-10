@@ -62,6 +62,12 @@ public class Crate {
     @SerializedName("massOpenLimit")
     private int massOpenLimit = -1;
 
+    @SerializedName("openRateLimit")
+    private int openRateLimit = 0;
+
+    @SerializedName("lifetimeOpenLimit")
+    private int lifetimeOpenLimit = 0;
+
     @SerializedName("accessDeniedKnockback")
     private boolean accessDeniedKnockback = false;
 
@@ -325,6 +331,11 @@ public class Crate {
     public PreviewConfig getPreview() { return preview != null ? preview : new PreviewConfig(); }
     public boolean isMassOpenEnabled() { return massOpenEnabled; }
     public int getMassOpenLimit() { return massOpenLimit; }
+
+    public int getOpenRateLimit()       { return openRateLimit; }
+    public void setOpenRateLimit(int v) { this.openRateLimit = v; }
+    public int getLifetimeOpenLimit()       { return lifetimeOpenLimit; }
+    public void setLifetimeOpenLimit(int v) { this.lifetimeOpenLimit = v; }
 
     public GuiAnimationType getGuiAnimation() { return guiAnimation != null ? guiAnimation : GuiAnimationType.ROULETTE; }
     public void setGuiAnimation(GuiAnimationType guiAnimation) { this.guiAnimation = guiAnimation; }

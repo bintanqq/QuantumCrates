@@ -153,6 +153,8 @@ messages:
   already-opening:   "&cYou are already opening a crate!"
   reward-received:   "&aCongratulations! You received: &e{reward}"
   inventory-full:    "&eYour inventory is full! &f{reward} &ewas dropped at your feet."
+  rate-limited: "&cYou're opening too fast! Slow down."
+  lifetime-limit-reached: "&cYou've reached the lifetime limit of &e{limit} &copens for this crate."
 
   # ── Keys ─────────────────────────────────────────────────────────────────
   key-not-found:      "&cYou do not have the required key: &e{key}"
@@ -296,6 +298,7 @@ gui-messages:
   info-pity-status-normal: "&7Normal"
   info-pity-progress:     "&7Pity: &e{pity}&8/&e{pity_max} &8(soft: &6{soft}&8)"
   info-pity-remaining:    "&7Guaranteed rare in &e{remaining} &7more opens"
+  info-lifetime-opens: "&7Lifetime Opens: &e{used}&8/&e{max}"
   info-controls-divider:  "&8──────────────────"
   info-controls-left:     "&7&oLeft Click  &8— &7&oPreview rewards"
   info-controls-right:    "&7&oRight Click &8— &7&oOpen crate"

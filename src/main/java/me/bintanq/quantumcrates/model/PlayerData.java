@@ -6,13 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * PlayerData — persistent per-player state stored in the database.
- *
- * Designed to be GSON-serializable for both DB storage and WebSocket sync.
- * This class is NOT thread-safe on its own; callers must synchronize access
- * or rely on PlayerDataManager's copy-on-write pattern.
- */
 public class PlayerData {
 
     @SerializedName("uuid")
@@ -31,6 +24,9 @@ public class PlayerData {
      */
     @SerializedName("cooldownData")
     private Map<String, Long> cooldownData;
+
+    @SerializedName("lifetimeOpens")
+    private Map<String, Integer> lifetimeOpens = new HashMap<>();
 
     @SerializedName("lastSeen")
     private long lastSeen;
@@ -83,11 +79,20 @@ public class PlayerData {
         return getRemainingCooldown(crateId, cooldownMs) > 0;
     }
 
+    public int getLifetimeOpens(String crateId) {
+        return lifetimeOpens.getOrDefault(crateId, 0);
+    }
+
+    public void incrementLifetimeOpens(String crateId) {
+        lifetimeOpens.merge(crateId, 1, Integer::sum);
+    }
+
     /* ─────────────────────── Getters / Setters ─────────────────────── */
 
     public UUID getUuid() { return uuid; }
     public Map<String, Integer> getPityData() { return pityData; }
     public Map<String, Long> getCooldownData() { return cooldownData; }
+    public Map<String, Integer> getLifetimeOpens() { return lifetimeOpens; }
     public long getLastSeen() { return lastSeen; }
     public void setLastSeen(long lastSeen) { this.lastSeen = lastSeen; }
 }

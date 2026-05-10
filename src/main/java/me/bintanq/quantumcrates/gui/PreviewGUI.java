@@ -265,6 +265,16 @@ public class PreviewGUI {
             lore.add(status);
         }
 
+        Crate.PityConfig pc = crate.getPity();
+        int lifetimeLimit = crate.getLifetimeOpenLimit();
+        if (lifetimeLimit > 0) {
+            int lifetimeUsed = plugin.getPlayerDataManager()
+                    .getLifetimeOpens(player.getUniqueId(), crate.getId());
+            lore.add(MessageManager.getGui("info-lifetime-opens",
+                    "{used}", String.valueOf(lifetimeUsed),
+                    "{max}", String.valueOf(lifetimeLimit)));
+        }
+
         String controlsDivider = MessageManager.getGui("info-controls-divider");
         if (!controlsDivider.isEmpty()) lore.add(controlsDivider);
         addIfNotEmpty(lore, MessageManager.getGui("info-controls-left"));
