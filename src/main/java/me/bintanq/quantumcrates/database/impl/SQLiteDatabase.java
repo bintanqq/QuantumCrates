@@ -79,11 +79,12 @@ public class SQLiteDatabase extends AbstractDatabase {
     protected String upsertPlayerDataSql() {
         // SQLite UPSERT syntax (available since 3.24.0)
         return """
-            INSERT INTO qc_player_data (uuid, pity_data, cooldown_data, last_seen)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO qc_player_data (uuid, pity_data, cooldown_data, lifetime_opens, last_seen)
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(uuid) DO UPDATE SET
                 pity_data     = excluded.pity_data,
                 cooldown_data = excluded.cooldown_data,
+                lifetime_opens = excluded.lifetime_opens,
                 last_seen     = excluded.last_seen
         """;
     }

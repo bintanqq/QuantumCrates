@@ -269,8 +269,8 @@ public class CrateManager {
         }
 
         if (crate.getLifetimeOpenLimit() > 0) {
-            PlayerData data2 = playerDataManager.getOrEmpty(player.getUniqueId());
-            if (data2.getLifetimeOpens(crateId) >= crate.getLifetimeOpenLimit())
+            int lifetimeUsed = playerDataManager.getLifetimeOpens(player.getUniqueId(), crateId);
+            if (lifetimeUsed >= crate.getLifetimeOpenLimit())
                 return OpenResult.LIFETIME_LIMIT_REACHED;
         }
         return OpenResult.SUCCESS;
@@ -388,6 +388,14 @@ public class CrateManager {
         openingLock.add(player.getUniqueId());
 
         try {
+
+            if (crate.getLifetimeOpenLimit() > 0) {
+                int lifetimeUsed = playerDataManager.getLifetimeOpens(player.getUniqueId(), crateId);
+                if (lifetimeUsed >= crate.getLifetimeOpenLimit()) {
+                    sendOpenResultFeedback(player, OpenResult.LIFETIME_LIMIT_REACHED, crateId);
+                    return false;
+                }
+            }
 
             if (!keyManager.consumeKeys(player, crate)) return false;
 

@@ -28,52 +28,58 @@ public abstract class AbstractDatabase implements DatabaseManager {
             conn.setAutoCommit(false);
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS qc_player_data (
-                        uuid            VARCHAR(36)  NOT NULL PRIMARY KEY,
-                        pity_data       TEXT         NOT NULL DEFAULT '{}',
-                        cooldown_data   TEXT         NOT NULL DEFAULT '{}',
-                        last_seen       BIGINT       NOT NULL DEFAULT 0
-                    )
-                """);
-
+                CREATE TABLE IF NOT EXISTS qc_player_data (
+                    uuid            VARCHAR(36)  NOT NULL PRIMARY KEY,
+                    pity_data       TEXT         NOT NULL DEFAULT '{}',
+                    cooldown_data   TEXT         NOT NULL DEFAULT '{}',
+                    lifetime_opens  TEXT         NOT NULL DEFAULT '{}',
+                    last_seen       BIGINT       NOT NULL DEFAULT 0
+                )
+            """);
                 stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS qc_virtual_keys (
-                        uuid            VARCHAR(36)  NOT NULL,
-                        key_id          VARCHAR(64)  NOT NULL,
-                        amount          INT          NOT NULL DEFAULT 0,
-                        PRIMARY KEY (uuid, key_id)
-                    )
-                """);
-
+                CREATE TABLE IF NOT EXISTS qc_virtual_keys (
+                    uuid            VARCHAR(36)  NOT NULL,
+                    key_id          VARCHAR(64)  NOT NULL,
+                    amount          INT          NOT NULL DEFAULT 0,
+                    PRIMARY KEY (uuid, key_id)
+                )
+            """);
                 stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS qc_crate_logs (
-                        id              INTEGER      PRIMARY KEY """ + autoIncrementSyntax() + """
-                        ,
-                        uuid            VARCHAR(36)  NOT NULL,
-                        player_name     VARCHAR(16)  NOT NULL,
-                        crate_id        VARCHAR(64)  NOT NULL,
-                        reward_id       VARCHAR(128) NOT NULL,
-                        reward_display  TEXT         NOT NULL,
-                        pity_at_open    INT          NOT NULL DEFAULT 0,
-                        timestamp       BIGINT       NOT NULL,
-                        world           VARCHAR(64),
-                        x               DOUBLE,
-                        y               DOUBLE,
-                        z               DOUBLE
-                    )
-                """);
-
+                CREATE TABLE IF NOT EXISTS qc_crate_logs (
+                    id              INTEGER      PRIMARY KEY """ + autoIncrementSyntax() + """
+                    ,
+                    uuid            VARCHAR(36)  NOT NULL,
+                    player_name     VARCHAR(16)  NOT NULL,
+                    crate_id        VARCHAR(64)  NOT NULL,
+                    reward_id       VARCHAR(128) NOT NULL,
+                    reward_display  TEXT         NOT NULL,
+                    pity_at_open    INT          NOT NULL DEFAULT 0,
+                    timestamp       BIGINT       NOT NULL,
+                    world           VARCHAR(64),
+                    x               DOUBLE,
+                    y               DOUBLE,
+                    z               DOUBLE
+                )
+            """);
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_logs_uuid  ON qc_crate_logs(uuid)");
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_logs_crate ON qc_crate_logs(crate_id)");
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_logs_ts    ON qc_crate_logs(timestamp)");
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_vkeys_uuid ON qc_virtual_keys(uuid)");
-
                 conn.commit();
                 Logger.info("Database schema &averified/created.");
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;
             }
+        }
+
+        // Migration — connection terpisah, autoCommit true
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(true);
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("ALTER TABLE qc_player_data ADD COLUMN lifetime_opens TEXT NOT NULL DEFAULT '{}'");
+                Logger.info("Migration: lifetime_opens column added.");
+            } catch (SQLException ignored) {}
         }
     }
 
@@ -82,15 +88,17 @@ public abstract class AbstractDatabase implements DatabaseManager {
     @Override
     public CompletableFuture<PlayerData> loadPlayerData(UUID uuid) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "SELECT pity_data, cooldown_data, last_seen FROM qc_player_data WHERE uuid = ?";
+            String sql = "SELECT pity_data, cooldown_data, lifetime_opens, last_seen FROM qc_player_data WHERE uuid = ?";
             try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, uuid.toString());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         return GsonProvider.fromJson(
-                                "{\"uuid\":\"%s\",\"pityData\":%s,\"cooldownData\":%s,\"lastSeen\":%d}".formatted(
+                                "{\"uuid\":\"%s\",\"pityData\":%s,\"cooldownData\":%s,\"lifetimeOpens\":%s,\"lastSeen\":%d}".formatted(
                                         uuid, rs.getString("pity_data"),
-                                        rs.getString("cooldown_data"), rs.getLong("last_seen")),
+                                        rs.getString("cooldown_data"),
+                                        rs.getString("lifetime_opens"),
+                                        rs.getLong("last_seen")),
                                 PlayerData.class);
                     }
                 }
@@ -137,7 +145,8 @@ public abstract class AbstractDatabase implements DatabaseManager {
         ps.setString(1, data.getUuid().toString());
         ps.setString(2, GsonProvider.toJson(data.getPityData()));
         ps.setString(3, GsonProvider.toJson(data.getCooldownData()));
-        ps.setLong(4, data.getLastSeen());
+        ps.setString(4, GsonProvider.toJson(data.getLifetimeOpens()));
+        ps.setLong(5, data.getLastSeen());
     }
 
     protected abstract String upsertPlayerDataSql();

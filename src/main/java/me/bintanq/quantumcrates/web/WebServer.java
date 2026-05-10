@@ -136,9 +136,15 @@ public class WebServer {
             });
         }, 5, 5, TimeUnit.MINUTES);
 
+        cachedPublicIp = fetchPublicIp();
+        if (cachedPublicIp != null) {
+            Logger.info("Detected public IP: &e" + cachedPublicIp);
+        } else {
+            Logger.warn("Could not fetch public IP, falling back to network interface.");
+        }
+
         Thread t = new Thread(() -> {
             try {
-                cachedPublicIp = fetchPublicIp();
                 app.start(port);
                 Logger.info("&aWeb Dashboard running on port &e" + port);
                 Logger.info("&7Use &a/qc web &7in-game to get your access link.");
@@ -852,13 +858,32 @@ public class WebServer {
     }
 
     private String fetchPublicIp() {
-        try {
-            java.net.URL url = new java.net.URL("https://checkip.amazonaws.com");
-            try (java.io.BufferedReader in = new java.io.BufferedReader(new java.io.InputStreamReader(url.openStream()))) {
-                String ip = in.readLine();
-                if (ip != null && !ip.trim().isEmpty()) return ip.trim();
-            }
-        } catch (Exception ignored) {}
+        String[] endpoints = {
+                "https://checkip.amazonaws.com",
+                "https://api4.my-ip.io/ip",
+                "https://ipv4.icanhazip.com",
+                "https://api.ipify.org"
+        };
+        for (String endpoint : endpoints) {
+            try {
+                java.net.URL url = new java.net.URL(endpoint);
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(3000);
+                conn.setReadTimeout(3000);
+                conn.setRequestProperty("Accept", "text/plain");
+                if (conn.getResponseCode() == 200) {
+                    try (java.io.BufferedReader in = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(conn.getInputStream()))) {
+                        String ip = in.readLine();
+                        if (ip != null && !ip.trim().isEmpty()) {
+                            Logger.info("Public IP fetched from &e" + endpoint + "&f: &a" + ip.trim());
+                            return ip.trim();
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        Logger.warn("All public IP endpoints failed.");
         return null;
     }
 

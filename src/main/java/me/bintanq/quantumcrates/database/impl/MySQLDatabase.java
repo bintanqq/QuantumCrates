@@ -97,11 +97,12 @@ public class MySQLDatabase extends AbstractDatabase {
     protected String upsertPlayerDataSql() {
         // MySQL INSERT ... ON DUPLICATE KEY UPDATE
         return """
-            INSERT INTO qc_player_data (uuid, pity_data, cooldown_data, last_seen)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO qc_player_data (uuid, pity_data, cooldown_data, lifetime_opens, last_seen)
+            VALUES (?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 pity_data     = VALUES(pity_data),
                 cooldown_data = VALUES(cooldown_data),
+                lifetime_opens = VALUES(lifetime_opens),
                 last_seen     = VALUES(last_seen)
         """;
     }

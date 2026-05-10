@@ -98,7 +98,9 @@ public class PlayerDataManager {
     }
 
     public int getLifetimeOpens(UUID uuid, String crateId) {
-        return getOrEmpty(uuid).getLifetimeOpens(crateId);
+        PlayerData data = cache.get(uuid);
+        if (data != null) return data.getLifetimeOpens(crateId);
+        return 0;
     }
 
     public void flushAll() {

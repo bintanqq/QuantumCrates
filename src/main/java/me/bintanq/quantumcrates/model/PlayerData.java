@@ -80,10 +80,12 @@ public class PlayerData {
     }
 
     public int getLifetimeOpens(String crateId) {
+        if (lifetimeOpens == null) lifetimeOpens = new HashMap<>();
         return lifetimeOpens.getOrDefault(crateId, 0);
     }
 
     public void incrementLifetimeOpens(String crateId) {
+        if (lifetimeOpens == null) lifetimeOpens = new HashMap<>();
         lifetimeOpens.merge(crateId, 1, Integer::sum);
     }
 
@@ -92,7 +94,10 @@ public class PlayerData {
     public UUID getUuid() { return uuid; }
     public Map<String, Integer> getPityData() { return pityData; }
     public Map<String, Long> getCooldownData() { return cooldownData; }
-    public Map<String, Integer> getLifetimeOpens() { return lifetimeOpens; }
+    public Map<String, Integer> getLifetimeOpens() {
+        if (lifetimeOpens == null) lifetimeOpens = new HashMap<>();
+        return lifetimeOpens;
+    }
     public long getLastSeen() { return lastSeen; }
     public void setLastSeen(long lastSeen) { this.lastSeen = lastSeen; }
 }

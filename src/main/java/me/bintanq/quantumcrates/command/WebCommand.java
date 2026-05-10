@@ -44,13 +44,13 @@ public class WebCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(MessageManager.getRaw("web-header-title"));
         sender.sendMessage(MessageManager.getRaw("web-header-bar"));
         sender.sendMessage(MessageManager.getRaw("web-link-label"));
-        sender.sendMessage(MessageManager.color("&c" + url));
-        sender.sendMessage(MessageManager.getRaw("web-link-hint"));
         sender.sendMessage(MessageManager.getRaw("web-header-bar"));
         sender.sendMessage("");
 
         if (sender instanceof Player player) {
             sendClickableLink(player, url);
+        } else {
+            sender.sendMessage(MessageManager.color("&c" + url));
         }
 
         return true;
@@ -70,13 +70,13 @@ public class WebCommand implements CommandExecutor, TabCompleter {
         var component = net.kyori.adventure.text.Component.text()
                 .append(net.kyori.adventure.text.Component.text("  \u25ba ")
                         .color(net.kyori.adventure.text.format.NamedTextColor.DARK_AQUA))
-                .append(net.kyori.adventure.text.Component.text(
-                                MessageManager.getRaw("web-click-button").replaceAll("\u00a7.", ""))
+                .append(net.kyori.adventure.text.Component.text(url)
                         .color(net.kyori.adventure.text.format.NamedTextColor.AQUA)
                         .decorate(net.kyori.adventure.text.format.TextDecoration.BOLD)
+                        .decorate(net.kyori.adventure.text.format.TextDecoration.UNDERLINED)
                         .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(url))
                         .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
-                                net.kyori.adventure.text.Component.text(url)
+                                net.kyori.adventure.text.Component.text("Click to open dashboard")
                                         .color(net.kyori.adventure.text.format.NamedTextColor.GRAY))))
                 .build();
 
