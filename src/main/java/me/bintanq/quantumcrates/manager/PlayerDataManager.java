@@ -112,6 +112,10 @@ public class PlayerDataManager {
         return getOrEmpty(uuid).getLifetimeOpens(crateId);
     }
 
+    public void resetLifetimeOpens(UUID uuid, String crateId) {
+        mutateData(uuid, data -> data.resetLifetimeOpens(crateId));
+    }
+
     public void flushAll() {
         List<PlayerData> dirty = new ArrayList<>();
         java.util.Iterator<UUID> iter = dirtySet.keySet().iterator();

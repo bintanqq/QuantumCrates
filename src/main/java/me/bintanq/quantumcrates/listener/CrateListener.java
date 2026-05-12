@@ -60,29 +60,20 @@ public class CrateListener implements Listener {
     }
 
     private void handleOpen(Player player, Crate crate, Location crateBlockLoc) {
-        // Pre-check keys BEFORE calling crateManager.openCrate so we can apply
-        // knockback on the main thread (openCrate returns false but doesn't
-        // distinguish the reason on main-thread).
         me.bintanq.quantumcrates.manager.CrateManager.OpenResult result =
                 plugin.getCrateManager().canOpen(player, crate.getId());
 
-        if (result == me.bintanq.quantumcrates.manager.CrateManager.OpenResult.MISSING_KEY) {
-            // Send message
+        if (result == me.bintanq.quantumcrates.manager.CrateManager.OpenResult.MISSING_KEY
+                || result == me.bintanq.quantumcrates.manager.CrateManager.OpenResult.LIFETIME_LIMIT_REACHED) {
             plugin.getCrateManager().sendOpenResultFeedbackPublic(player, result, crate.getId());
-            // Knockback — we are already on main thread
             KnockbackUtil.applyDenied(player, crate, crateBlockLoc);
             return;
         }
 
-        // All other failure cases handled inside openCrate
         crateManager.openCrate(player, crate.getId());
     }
 
     private void handlePreview(Player player, Crate crate) {
-        if (!player.hasPermission("quantumcrates.preview")) {
-            MessageManager.sendNoPermission(player);
-            return;
-        }
         previewGUI.open(player, crate);
     }
 
@@ -95,12 +86,21 @@ public class CrateListener implements Listener {
             MessageManager.send(player, "mass-open-disabled", "{crate}", crate.getId());
             return;
         }
-        // Key check for knockback on mass open too
         if (!plugin.getKeyManager().hasRequiredKeys(player, crate)) {
             plugin.getCrateManager().sendOpenResultFeedbackPublic(player,
                     me.bintanq.quantumcrates.manager.CrateManager.OpenResult.MISSING_KEY, crate.getId());
             KnockbackUtil.applyDenied(player, crate, crateBlockLoc);
             return;
+        }
+        if (crate.getLifetimeOpenLimit() > 0
+                && !player.hasPermission("quantumcrates.bypasslimit")) {
+            int used = plugin.getPlayerDataManager().getLifetimeOpens(player.getUniqueId(), crate.getId());
+            if (used >= crate.getLifetimeOpenLimit()) {
+                plugin.getCrateManager().sendOpenResultFeedbackPublic(player,
+                        me.bintanq.quantumcrates.manager.CrateManager.OpenResult.LIFETIME_LIMIT_REACHED, crate.getId());
+                KnockbackUtil.applyDenied(player, crate, crateBlockLoc);
+                return;
+            }
         }
         crateManager.massOpen(player, crate.getId(), -1);
     }

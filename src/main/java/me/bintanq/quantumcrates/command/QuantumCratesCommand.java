@@ -41,6 +41,7 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
             case "delloc" -> cmdDelLoc(sender, args);
             case "pity"      -> cmdPity(sender, args);
             case "resetpity" -> cmdResetPity(sender, args);
+            case "resetlifetime" -> cmdResetLifetime(sender, args);
             case "keys"      -> cmdCheckKeys(sender, args);
             case "web"       -> new WebCommand(plugin).onCommand(sender, cmd, label,
                     Arrays.copyOfRange(args, 1, args.length));
@@ -336,10 +337,26 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
                         "{player}", target.getName(), "{key}", args[2], "{balance}", String.valueOf(balance)));
     }
 
+    private void cmdResetLifetime(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("quantumcrates.admin")) { MessageManager.sendNoPermission(sender); return; }
+        if (args.length < 3) { MessageManager.send(sender, "usage-resetlifetime"); return; }
+
+        Player target = Bukkit.getPlayer(args[1]);
+        if (target == null) { MessageManager.sendPlayerNotFound(sender, args[1]); return; }
+
+        String crateId = args[2];
+        if (crateManager().getCrate(crateId) == null) { MessageManager.sendCrateNotFound(sender, crateId); return; }
+
+        int before = plugin.getPlayerDataManager().getLifetimeOpens(target.getUniqueId(), crateId);
+        plugin.getPlayerDataManager().resetLifetimeOpens(target.getUniqueId(), crateId);
+        MessageManager.send(sender, "lifetime-reset-done",
+                "{player}", target.getName(), "{crate}", crateId, "{count}", String.valueOf(before));
+    }
+
     private void sendHelp(CommandSender sender) {
         MessageManager.send(sender, "help-header");
         for (String key : List.of("reload","give","open","info","list",
-                "setloc","delloc","pity","resetpity","keys-cmd","web",
+                "setloc","delloc","pity","resetpity","resetlifetime","keys-cmd","web",
                 "controls-header","ctrl-left","ctrl-right","ctrl-shift")) {
             MessageManager.send(sender, "help-" + key);
         }
@@ -350,12 +367,12 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
                                       @NotNull String label, @NotNull String[] args) {
         if (args.length == 1)
             return filter(List.of("reload","give","open","info","list",
-                    "setloc","delloc","pity","resetpity","keys","web"), args[0]);
+                    "setloc","delloc","pity","resetpity","resetlifetime","keys","web"), args[0]);
 
         return switch (args[0].toLowerCase()) {
             case "open","info","setloc","delloc" ->
                     args.length == 2 ? filter(crateIds(), args[1]) : List.of();
-            case "give","pity","resetpity","keys" ->
+            case "give","pity","resetpity","resetlifetime","keys" ->
                     args.length == 2 ? filter(onlinePlayers(), args[1])
                             : args.length == 3 ? filter(
                             args[0].equalsIgnoreCase("give") ? knownKeyIds() : crateIds(),

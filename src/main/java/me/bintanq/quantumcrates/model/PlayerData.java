@@ -89,6 +89,11 @@ public class PlayerData {
         lifetimeOpens.merge(crateId, 1, Integer::sum);
     }
 
+    public void resetLifetimeOpens(String crateId) {
+        if (lifetimeOpens == null) lifetimeOpens = new HashMap<>();
+        lifetimeOpens.remove(crateId);
+    }
+
     /* ─────────────────────── Getters / Setters ─────────────────────── */
 
     public UUID getUuid() { return uuid; }
