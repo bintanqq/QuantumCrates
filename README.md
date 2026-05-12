@@ -146,3 +146,8 @@ The dashboard runs as an embedded web server — no external software required.
 - [Documentation](https://bintanq.my.id/docs)
 - [SpigotMC](https://www.spigotmc.org/resources/quantumcrate-%E2%9C%A8-first-web-dashboard-crates-%E2%9C%A81-21-11.134691/)
 - [Discord](https://discord.com/users/696526236175827015)
+
+## License
+
+This project is licensed under the [GNU General Public License v3.0](LICENSE).  
+© 2026 bintanq — You may use, modify, and distribute this plugin freely under the terms of the GPL v3.
