@@ -41,9 +41,6 @@ public class AnimationManager {
         resolveAnimation(crate).start(session);
     }
 
-    public void onInventoryClose(Player player) {
-    }
-
     public void completeSession(CrateSession session) {
         if (!session.tryComplete()) {
             return;

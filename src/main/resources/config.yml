@@ -218,8 +218,10 @@ messages:
   usage-delloc:    "&cUsage: /qc delloc <crateId> [locationIndex]"
   usage-pity:      "&cUsage: /qc pity <player> <crateId>"
   usage-resetpity: "&cUsage: /qc resetpity <player> <crateId>"
-  usage-keys:      "&cUsage: /qc keys <player> <keyId>"
-  keys-balance:    "&7Virtual key &e[{key}] &7for &e{player}&7: &a{balance}"
+  usage-keys: "&cUsage: /qc keys <player> <keyId>"
+  usage-resetlifetime: "&cUsage: /qc resetlifetime <player> <crateId>"
+  keys-balance: "&7Virtual key &e[{key}] &7for &e{player}&7: &a{balance}"
+  lifetime-reset-done: "&aReset lifetime opens for &e{player} &aon crate &e{crate}&a. &8(was &7{count}&8)"
 
   # ── List Command ──────────────────────────────────────────────────────────
   list-empty:      "&7No crates are registered yet."
@@ -246,7 +248,8 @@ messages:
   help-list:            "&e/qc list &7- List all crates"
   help-setloc:          "&e/qc setloc <crateId> &7- Add location at targeted block"
   help-pity:            "&e/qc pity <player> <crateId> &7- Check pity counter"
-  help-resetpity:       "&e/qc resetpity <player> <crateId> &7- Reset pity"
+  help-resetpity: "&e/qc resetpity <player> <crateId> &7- Reset pity"
+  help-resetlifetime: "&e/qc resetlifetime <player> <crateId> &7- Reset lifetime opens"
   help-keys-cmd:        "&e/qc keys <player> <keyId> &7- Check virtual key balance"
   help-controls-header: "&a&lBlock Controls:"
   help-ctrl-left:       "  &e[Left Click]         &7→ Preview rewards"

@@ -347,10 +347,15 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
         String crateId = args[2];
         if (crateManager().getCrate(crateId) == null) { MessageManager.sendCrateNotFound(sender, crateId); return; }
 
-        int before = plugin.getPlayerDataManager().getLifetimeOpens(target.getUniqueId(), crateId);
-        plugin.getPlayerDataManager().resetLifetimeOpens(target.getUniqueId(), crateId);
-        MessageManager.send(sender, "lifetime-reset-done",
-                "{player}", target.getName(), "{crate}", crateId, "{count}", String.valueOf(before));
+        String playerName = target.getName();
+        plugin.getDatabaseManager().loadPlayerData(target.getUniqueId())
+                .thenAccept(data -> {
+                    int before = data.getLifetimeOpens(crateId);
+                    plugin.getPlayerDataManager().resetLifetimeOpens(target.getUniqueId(), crateId);
+                    Bukkit.getScheduler().runTask(plugin, () ->
+                            MessageManager.send(sender, "lifetime-reset-done",
+                                    "{player}", playerName, "{crate}", crateId, "{count}", String.valueOf(before)));
+                });
     }
 
     private void sendHelp(CommandSender sender) {
@@ -385,10 +390,6 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
     }
 
     private me.bintanq.quantumcrates.manager.CrateManager crateManager() { return plugin.getCrateManager(); }
-
-    private int parseIntSafe(String s, int fallback) {
-        try { return Integer.parseInt(s); } catch (NumberFormatException e) { return fallback; }
-    }
 
     private List<String> filter(List<String> opts, String input) {
         return opts.stream()
