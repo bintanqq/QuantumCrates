@@ -44,7 +44,18 @@ public class PlayerDataManager {
     }
 
     public PlayerData getOrEmpty(UUID uuid) {
-        return cache.getOrDefault(uuid, new PlayerData(uuid));
+        PlayerData cached = cache.get(uuid);
+        if (cached != null) return cached;
+
+        CompletableFuture<PlayerData> pending = pendingLoads.get(uuid);
+        if (pending != null && pending.isDone()) {
+            try {
+                PlayerData loaded = pending.getNow(null);
+                if (loaded != null) return loaded;
+            } catch (Exception ignored) {}
+        }
+
+        return new PlayerData(uuid);
     }
 
     public void markDirty(UUID uuid) {
@@ -98,9 +109,7 @@ public class PlayerDataManager {
     }
 
     public int getLifetimeOpens(UUID uuid, String crateId) {
-        PlayerData data = cache.get(uuid);
-        if (data != null) return data.getLifetimeOpens(crateId);
-        return 0;
+        return getOrEmpty(uuid).getLifetimeOpens(crateId);
     }
 
     public void flushAll() {

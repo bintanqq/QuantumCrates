@@ -268,7 +268,8 @@ public class CrateManager {
             }
         }
 
-        if (crate.getLifetimeOpenLimit() > 0) {
+        if (crate.getLifetimeOpenLimit() > 0
+                && !player.hasPermission("quantumcrates.bypasslimit")) {
             int lifetimeUsed = playerDataManager.getLifetimeOpens(player.getUniqueId(), crateId);
             if (lifetimeUsed >= crate.getLifetimeOpenLimit())
                 return OpenResult.LIFETIME_LIMIT_REACHED;
@@ -303,7 +304,8 @@ public class CrateManager {
         int maxAllowed = crate.getMassOpenLimit();
         int canPerform = keyManager.countPossibleOpens(player, crate);
 
-        if (crate.getLifetimeOpenLimit() > 0) {
+        if (crate.getLifetimeOpenLimit() > 0
+                && !player.hasPermission("quantumcrates.bypasslimit")) {
             int used = playerDataManager.getLifetimeOpens(player.getUniqueId(), crateId);
             int remaining = crate.getLifetimeOpenLimit() - used;
             if (remaining <= 0) {
@@ -389,7 +391,8 @@ public class CrateManager {
 
         try {
 
-            if (crate.getLifetimeOpenLimit() > 0) {
+            if (crate.getLifetimeOpenLimit() > 0
+                    && !player.hasPermission("quantumcrates.bypasslimit")) {
                 int lifetimeUsed = playerDataManager.getLifetimeOpens(player.getUniqueId(), crateId);
                 if (lifetimeUsed >= crate.getLifetimeOpenLimit()) {
                     sendOpenResultFeedback(player, OpenResult.LIFETIME_LIMIT_REACHED, crateId);
@@ -465,6 +468,12 @@ public class CrateManager {
         Crate crate = crateRegistry.get(crateId);
         if (crate == null || !crate.isEnabled()) return false;
         if (!crate.isCurrentlyOpenable()) return false;
+
+        if (crate.getLifetimeOpenLimit() > 0
+                && !player.hasPermission("quantumcrates.bypasslimit")) {
+            int lifetimeUsed = playerDataManager.getLifetimeOpens(player.getUniqueId(), crateId);
+            if (lifetimeUsed >= crate.getLifetimeOpenLimit()) return false;
+        }
 
         PlayerData data = playerDataManager.getOrEmpty(player.getUniqueId());
 
@@ -671,7 +680,14 @@ public class CrateManager {
         return crateId != null ? crateRegistry.get(crateId) : null;
     }
 
-    public void shutdown() { openingLock.clear(); }
+    public void shutdown() {
+        openingLock.clear();
+        rateLimitTracker.clear();
+    }
+
+    public void cleanupPlayer(UUID uuid) {
+        rateLimitTracker.remove(uuid);
+    }
 
     public Crate getCrate(String id) { return crateRegistry.get(id); }
     public Collection<Crate> getAllCrates() { return crateRegistry.values(); }

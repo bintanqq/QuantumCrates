@@ -9,6 +9,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import java.util.UUID;
+
 public class PlayerListener implements Listener {
 
     private final QuantumCrates     plugin;
@@ -31,7 +33,9 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
+        UUID uuid = event.getPlayer().getUniqueId();
+        plugin.getCrateManager().cleanupPlayer(uuid);
         plugin.getAsyncExecutor().execute(() ->
-                playerDataManager.unloadPlayer(event.getPlayer().getUniqueId()));
+                playerDataManager.unloadPlayer(uuid));
     }
 }
