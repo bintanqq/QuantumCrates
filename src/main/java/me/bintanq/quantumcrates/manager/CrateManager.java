@@ -1,6 +1,9 @@
 package me.bintanq.quantumcrates.manager;
 
 import me.bintanq.quantumcrates.QuantumCrates;
+import me.bintanq.quantumcrates.api.dto.RewardSnapshot;
+import me.bintanq.quantumcrates.api.event.CrateOpenEvent;
+import me.bintanq.quantumcrates.api.event.CrateRewardEvent;
 import me.bintanq.quantumcrates.log.LogManager;
 import me.bintanq.quantumcrates.model.Crate;
 import me.bintanq.quantumcrates.model.PlayerData;
@@ -10,6 +13,7 @@ import me.bintanq.quantumcrates.serializer.GsonProvider;
 import me.bintanq.quantumcrates.util.Logger;
 import me.bintanq.quantumcrates.util.MessageManager;
 import me.bintanq.quantumcrates.util.TimeUtil;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -461,6 +465,14 @@ public class CrateManager {
             }
             playerDataManager.incrementLifetimeOpens(player.getUniqueId(), crateId);
 
+            // Fire API events
+            RewardSnapshot snap = RewardSnapshot.from(result.getReward(), crate.getTotalWeight());
+            CrateRewardEvent rewardEvent = new CrateRewardEvent(player, crateId, snap);
+            Bukkit.getPluginManager().callEvent(rewardEvent);
+            CrateOpenEvent openEvent = new CrateOpenEvent(player, crateId, snap,
+                    result.isPityGuaranteed(), result.getPityAtRoll());
+            Bukkit.getPluginManager().callEvent(openEvent);
+
             plugin.getAnimationManager().startAnimation(player, crate, result);
 
             if (plugin.getParticleManager() != null)
@@ -525,6 +537,15 @@ public class CrateManager {
             if (crate.getCooldownMs() > 0)
                 playerDataManager.setLastOpen(player.getUniqueId(), crateId);
             playerDataManager.incrementLifetimeOpens(player.getUniqueId(), crateId);
+
+            // Fire API events for mass open
+            RewardSnapshot snap = RewardSnapshot.from(result.getReward(), crate.getTotalWeight());
+            CrateRewardEvent rewardEvent = new CrateRewardEvent(player, crateId, snap);
+            Bukkit.getPluginManager().callEvent(rewardEvent);
+            if (rewardEvent.isCancelled()) return false;
+            CrateOpenEvent openEvent = new CrateOpenEvent(player, crateId, snap,
+                    result.isPityGuaranteed(), result.getPityAtRoll());
+            Bukkit.getPluginManager().callEvent(openEvent);
 
             // Mass open: deliver langsung tanpa animasi GUI
             deliverRewardPublic(player, result);

@@ -1,6 +1,7 @@
 package me.bintanq.quantumcrates;
 
 import me.bintanq.quantumcrates.animation.AnimationManager;
+import me.bintanq.quantumcrates.api.QuantumCratesAPI;
 import me.bintanq.quantumcrates.command.QuantumCratesCommand;
 import me.bintanq.quantumcrates.database.DatabaseManager;
 import me.bintanq.quantumcrates.database.impl.MySQLDatabase;
@@ -19,7 +20,9 @@ import me.bintanq.quantumcrates.particle.ParticleManager;
 import me.bintanq.quantumcrates.placeholder.QuantumPlaceholderExpansion;
 import me.bintanq.quantumcrates.processor.RewardProcessor;
 import me.bintanq.quantumcrates.serializer.GsonProvider;
+import me.bintanq.quantumcrates.util.ConfigMigrator;
 import me.bintanq.quantumcrates.util.Logger;
+import me.bintanq.quantumcrates.util.VersionChecker;
 import me.bintanq.quantumcrates.web.StatsScheduler;
 import me.bintanq.quantumcrates.web.WebServer;
 import me.bintanq.quantumcrates.web.WebSocketBridge;
@@ -51,6 +54,7 @@ public final class QuantumCrates extends JavaPlugin {
     private StatsScheduler statsScheduler;
     private AnimationManager animationManager;
     private BukkitAudiences adventure;
+    private VersionChecker versionChecker;
 
     @Override
     public void onEnable() {
@@ -67,6 +71,11 @@ public final class QuantumCrates extends JavaPlugin {
         saveDefaultConfig();
         GsonProvider.init();
         me.bintanq.quantumcrates.util.MessageManager.init(this);
+
+        // Run config migrations before anything reads config
+        ConfigMigrator.migrateConfig(this);
+        ConfigMigrator.migrateRarities(this);
+        ConfigMigrator.migrateCrateFiles(this);
 
         int poolSize = Math.max(2, Runtime.getRuntime().availableProcessors());
         asyncExecutor = Executors.newFixedThreadPool(poolSize, r -> {
@@ -119,6 +128,15 @@ public final class QuantumCrates extends JavaPlugin {
             statsScheduler.start();
             Logger.info("Web Dashboard &aenabled &f— port &e" + getConfig().getInt("web.port", 7420));
         }
+
+        // Initialize public API
+        QuantumCratesAPI.init(this);
+        Logger.info("Developer API &ainitialized.");
+
+        // Async version check
+        versionChecker = new VersionChecker(this);
+        pm.registerEvents(versionChecker, this);
+        versionChecker.checkAsync();
 
         Logger.info("&aQuantumCrates enabled successfully!");
     }
@@ -210,4 +228,5 @@ public final class QuantumCrates extends JavaPlugin {
     public StatsScheduler getStatsScheduler()          { return statsScheduler; }
     public AnimationManager getAnimationManager()      { return animationManager; }
     public BukkitAudiences adventure() { return adventure; }
+    public VersionChecker getVersionChecker()          { return versionChecker; }
 }

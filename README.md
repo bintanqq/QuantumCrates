@@ -15,6 +15,7 @@ A Minecraft crate plugin for Paper 1.20.1+ built around a **web-first management
 - PlaceholderAPI
 - DecentHolograms
 - MMOItems / ItemsAdder / Oraxen
+- Vault
 
 ---
 
@@ -48,7 +49,9 @@ A Minecraft crate plugin for Paper 1.20.1+ built around a **web-first management
 - ⏱ **Lifetime Open Limit** — cap how many times a player can ever open a crate
 - 🚫 **Rate Limiting** — prevent macro abuse with per-second open rate cap
 - 💥 **Access Denied Knockback** — push players away when they lack required keys
-- 🔌 **Plugin Integrations** — MMOItems, ItemsAdder, Oraxen, PlaceholderAPI, DecentHolograms
+- 💰 **Vault Economy** — soft-depend economy integration for rewards
+- 💻 **Developer API** — full API and custom events for external plugins
+- 🔌 **Integrations** — MMOItems, ItemsAdder, Oraxen, PlaceholderAPI, DecentHolograms
 
 ---
 
@@ -99,6 +102,17 @@ A Minecraft crate plugin for Paper 1.20.1+ built around a **web-first management
 | `%quantumcrates_total_<crateId>%` | Total reward weight |
 | `%quantumcrates_lifetime_<crateId>%` | Player's lifetime open count |
 | `%quantumcrates_lifetime_max_<crateId>%` | Lifetime open limit (`0` = unlimited) |
+
+> 📌 **Note:** This is only a partial list. For all 20+ placeholders (including Pity Status, Cooldowns, and Vault Balance), please check the [Documentation](https://bintanq.my.id/docs).
+
+---
+
+## Developer API
+
+QuantumCrates provides a stable Java API and custom events for third-party developers. 
+For Maven/Gradle installation instructions, available methods, DTOs, and event examples, please read the official documentation:
+
+👉 **[Read the Developer API Documentation](https://bintanq.my.id/docs)**
 
 ---
 

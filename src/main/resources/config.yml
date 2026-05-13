@@ -35,6 +35,11 @@ database:
     max-lifetime: 1800000
 
 # ─────────────────────────────────────────────────────────────────────────────
+# CONFIG VERSIONING — do NOT modify this manually
+# ─────────────────────────────────────────────────────────────────────────────
+config-version: 2
+
+# ─────────────────────────────────────────────────────────────────────────────
 # GENERAL SETTINGS
 # ─────────────────────────────────────────────────────────────────────────────
 settings:
@@ -47,6 +52,24 @@ settings:
   # Maximum number of simultaneous crate animations across all players.
   # Increase this on high-population servers (costs RAM per session).
   max-concurrent-openings: 50
+
+  # Whether to check for plugin updates on startup (async, no lag).
+  check-updates: true
+
+  # Notify operators on join if an update is available.
+  notify-ops-on-join: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VAULT ECONOMY INTEGRATION
+# Requires Vault + an economy plugin (e.g., EssentialsX, CMI).
+# All Vault features degrade gracefully if Vault is absent.
+# ─────────────────────────────────────────────────────────────────────────────
+vault:
+  # Master toggle for Vault integration. Set to false to fully disable.
+  enabled: true
+
+  # Format string for economy amounts in messages. {amount} = numeric value.
+  currency-format: "${amount}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # KEY SYSTEM

@@ -11,6 +11,7 @@ softdepend:
   - MMOItems
   - ItemsAdder
   - Oraxen
+  - Vault
 
 commands:
   quantumcrates:
