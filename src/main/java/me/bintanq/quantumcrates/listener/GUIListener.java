@@ -17,9 +17,9 @@ public class GUIListener implements Listener {
 
     private final QuantumCrates plugin;
 
-    private static final int SLOT_PREV  = 46;
+    private static final int SLOT_PREV = 46;
     private static final int SLOT_CLOSE = 49;
-    private static final int SLOT_NEXT  = 52;
+    private static final int SLOT_NEXT = 52;
 
     public GUIListener(QuantumCrates plugin) {
         this.plugin = plugin;
@@ -27,7 +27,8 @@ public class GUIListener implements Listener {
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (!(event.getWhoClicked() instanceof Player player))
+            return;
 
         CrateSession session = plugin.getAnimationManager().getSession(player.getUniqueId());
 
@@ -37,31 +38,36 @@ public class GUIListener implements Listener {
         }
 
         String title = event.getView().getTitle();
-        if (!PreviewGUI.isPreviewInventory(title)) return;
+        if (!PreviewGUI.isPreviewInventory(title))
+            return;
 
         event.setCancelled(true);
 
         var clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType().isAir()) return;
+        if (clicked == null || clicked.getType().isAir())
+            return;
 
         int slot = event.getRawSlot();
         switch (slot) {
             case SLOT_CLOSE -> player.closeInventory();
-            case SLOT_PREV  -> {
+            case SLOT_PREV -> {
                 int page = PreviewGUI.parsePageFromTitle(title);
-                if (page > 0) openPreviewPage(player, title, page - 1);
+                if (page > 0)
+                    openPreviewPage(player, title, page - 1);
             }
             case SLOT_NEXT -> {
                 int page = PreviewGUI.parsePageFromTitle(title);
                 openPreviewPage(player, title, page + 1);
             }
-            default -> {}
+            default -> {
+            }
         }
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onInventoryDrag(InventoryDragEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (!(event.getWhoClicked() instanceof Player player))
+            return;
 
         if (plugin.getAnimationManager().hasSession(player.getUniqueId())) {
             event.setCancelled(true);
@@ -69,31 +75,41 @@ public class GUIListener implements Listener {
         }
 
         String title = event.getView().getTitle();
-        if (PreviewGUI.isPreviewInventory(title)) event.setCancelled(true);
+        if (PreviewGUI.isPreviewInventory(title))
+            event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onInventoryClose(InventoryCloseEvent event) {
-        if (!(event.getPlayer() instanceof Player player)) return;
+        if (!(event.getPlayer() instanceof Player player))
+            return;
 
         CrateSession session = plugin.getAnimationManager().getSession(player.getUniqueId());
-        if (session == null) return;
+        if (session == null)
+            return;
 
         if (session.isRunning()) {
+            // Player closed inventory while animation was still playing.
+            // Mark forfeited FIRST so any in-flight delayed task sees it and bails.
+            session.setForfeited(true);
             session.setRunning(false);
             session.cancelAllTasks();
-            plugin.getAnimationManager().completeSession(session);
+        }
+
+        // completeSession uses AtomicBoolean CAS — only the first caller
+        // (us OR the animation delayed task) wins and delivers the reward.
+        if (plugin.getAnimationManager().completeSession(session)) {
             plugin.getCrateManager().deliverRewardPublic(player, session.getResult());
-        } else {
-            plugin.getAnimationManager().completeSession(session);
         }
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onInventoryOpen(InventoryOpenEvent event) {
-        if (!(event.getPlayer() instanceof Player player)) return;
+        if (!(event.getPlayer() instanceof Player player))
+            return;
         CrateSession session = plugin.getAnimationManager().getSession(player.getUniqueId());
-        if (session == null || !session.isRunning()) return;
+        if (session == null || !session.isRunning())
+            return;
 
         // If the opening inventory is not the animation inventory, cancel it
         if (session.getInventory() != null
@@ -102,10 +118,12 @@ public class GUIListener implements Listener {
         }
     }
 
-
     private void openPreviewPage(Player player, String title, int targetPage) {
         Crate crate = resolveCrateFromTitle(title);
-        if (crate == null) { player.closeInventory(); return; }
+        if (crate == null) {
+            player.closeInventory();
+            return;
+        }
         new PreviewGUI(plugin, plugin.getRewardProcessor()).open(player, crate, targetPage);
     }
 
@@ -114,15 +132,19 @@ public class GUIListener implements Listener {
         if (stripped.startsWith(PreviewGUI.TITLE_PREFIX))
             stripped = stripped.substring(PreviewGUI.TITLE_PREFIX.length());
         int bracketIdx = stripped.lastIndexOf(" §8[");
-        if (bracketIdx < 0) bracketIdx = stripped.lastIndexOf(" [");
-        if (bracketIdx >= 0) stripped = stripped.substring(0, bracketIdx);
+        if (bracketIdx < 0)
+            bracketIdx = stripped.lastIndexOf(" [");
+        if (bracketIdx >= 0)
+            stripped = stripped.substring(0, bracketIdx);
         String plainName = stripped.replaceAll("§.", "").trim();
 
         for (Crate crate : plugin.getCrateManager().getAllCrates()) {
             String displayPlain = crate.getDisplayName() != null
-                    ? crate.getDisplayName().replaceAll("[&§].", "").trim() : "";
+                    ? crate.getDisplayName().replaceAll("[&§].", "").trim()
+                    : "";
             if (plainName.equalsIgnoreCase(displayPlain)
-                    || plainName.equalsIgnoreCase(crate.getId())) return crate;
+                    || plainName.equalsIgnoreCase(crate.getId()))
+                return crate;
         }
         return null;
     }

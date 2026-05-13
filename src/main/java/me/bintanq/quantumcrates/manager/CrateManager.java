@@ -338,10 +338,18 @@ public class CrateManager {
         }
 
         final int totalToOpen = actual;
+        final UUID capturedUuid = player.getUniqueId();
         final java.lang.ref.WeakReference<Player> playerRef = new java.lang.ref.WeakReference<>(player);
         final java.util.concurrent.atomic.AtomicInteger remaining = new java.util.concurrent.atomic.AtomicInteger(totalToOpen);
         final java.util.concurrent.atomic.AtomicInteger successCount = new java.util.concurrent.atomic.AtomicInteger(0);
         final String capturedCrateId = crateId;
+
+        // Respect rate limit: calculate max opens per tick (1 tick = 50ms)
+        final int rateLimit = crate.getOpenRateLimit();
+        // If rateLimit is e.g. 5/sec → 5 per 20 ticks → 1 per 4 ticks minimum
+        // For simplicity: allow at most max(1, rateLimit) per second, spread across ticks
+        // Each tick processes min(batchPerTick, remaining)
+        final int batchPerTick = (rateLimit > 0) ? Math.max(1, rateLimit / 20) : 10;
 
         new org.bukkit.scheduler.BukkitRunnable() {
             @Override
@@ -349,7 +357,20 @@ public class CrateManager {
                 Player p = playerRef.get();
 
                 if (p == null || !p.isOnline()) {
-                    openingLock.remove(p != null ? p.getUniqueId() : player.getUniqueId());
+                    // REFUND remaining unconsumed keys
+                    int leftover = remaining.get();
+                    if (leftover > 0) {
+                        Crate c = crateRegistry.get(capturedCrateId);
+                        if (c != null) {
+                            for (Crate.KeyRequirement req : c.getRequiredKeys()) {
+                                if (req.getType() == Crate.KeyType.VIRTUAL) {
+                                    plugin.getDatabaseManager().addVirtualKeys(capturedUuid, req.getKeyId(), req.getAmount() * leftover);
+                                }
+                            }
+                        }
+                        Logger.info("Refunded " + leftover + " mass-open keys to offline player " + capturedUuid);
+                    }
+                    openingLock.remove(capturedUuid);
                     cancel();
                     return;
                 }
@@ -364,11 +385,23 @@ public class CrateManager {
                     return;
                 }
 
-                int batch = Math.min(10, remaining.get());
+                int batch = Math.min(batchPerTick, remaining.get());
                 for (int i = 0; i < batch; i++) {
                     if (executeOpenNoKeyConsume(p, capturedCrateId)) {
                         successCount.incrementAndGet();
                     } else {
+                        // Refund remaining keys that won't be used
+                        int leftover = remaining.get() - 1; // -1 because this one failed
+                        if (leftover > 0) {
+                            Crate c = crateRegistry.get(capturedCrateId);
+                            if (c != null) {
+                                for (Crate.KeyRequirement req : c.getRequiredKeys()) {
+                                    if (req.getType() == Crate.KeyType.VIRTUAL) {
+                                        plugin.getDatabaseManager().addVirtualKeys(p.getUniqueId(), req.getKeyId(), req.getAmount() * leftover);
+                                    }
+                                }
+                            }
+                        }
                         remaining.set(0);
                         break;
                     }

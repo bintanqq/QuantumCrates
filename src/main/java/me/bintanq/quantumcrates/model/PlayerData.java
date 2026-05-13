@@ -2,9 +2,9 @@ package me.bintanq.quantumcrates.model;
 
 import com.google.gson.annotations.SerializedName;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerData {
 
@@ -26,7 +26,7 @@ public class PlayerData {
     private Map<String, Long> cooldownData;
 
     @SerializedName("lifetimeOpens")
-    private Map<String, Integer> lifetimeOpens = new HashMap<>();
+    private Map<String, Integer> lifetimeOpens = new ConcurrentHashMap<>();
 
     @SerializedName("lastSeen")
     private long lastSeen;
@@ -35,8 +35,8 @@ public class PlayerData {
 
     public PlayerData(UUID uuid) {
         this.uuid         = uuid;
-        this.pityData     = new HashMap<>();
-        this.cooldownData = new HashMap<>();
+        this.pityData     = new ConcurrentHashMap<>();
+        this.cooldownData = new ConcurrentHashMap<>();
         this.lastSeen     = System.currentTimeMillis();
     }
 
@@ -80,17 +80,17 @@ public class PlayerData {
     }
 
     public int getLifetimeOpens(String crateId) {
-        if (lifetimeOpens == null) lifetimeOpens = new HashMap<>();
+        if (lifetimeOpens == null) lifetimeOpens = new ConcurrentHashMap<>();
         return lifetimeOpens.getOrDefault(crateId, 0);
     }
 
     public void incrementLifetimeOpens(String crateId) {
-        if (lifetimeOpens == null) lifetimeOpens = new HashMap<>();
+        if (lifetimeOpens == null) lifetimeOpens = new ConcurrentHashMap<>();
         lifetimeOpens.merge(crateId, 1, Integer::sum);
     }
 
     public void resetLifetimeOpens(String crateId) {
-        if (lifetimeOpens == null) lifetimeOpens = new HashMap<>();
+        if (lifetimeOpens == null) lifetimeOpens = new ConcurrentHashMap<>();
         lifetimeOpens.remove(crateId);
     }
 
@@ -100,7 +100,7 @@ public class PlayerData {
     public Map<String, Integer> getPityData() { return pityData; }
     public Map<String, Long> getCooldownData() { return cooldownData; }
     public Map<String, Integer> getLifetimeOpens() {
-        if (lifetimeOpens == null) lifetimeOpens = new HashMap<>();
+        if (lifetimeOpens == null) lifetimeOpens = new ConcurrentHashMap<>();
         return lifetimeOpens;
     }
     public long getLastSeen() { return lastSeen; }

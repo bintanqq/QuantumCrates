@@ -8,6 +8,7 @@ import me.bintanq.quantumcrates.util.Logger;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,9 +18,16 @@ public class AnimationManager {
 
     private final QuantumCrates plugin;
     private final Map<UUID, CrateSession> sessions = new ConcurrentHashMap<>();
+    private final EnumMap<Crate.GuiAnimationType, CrateAnimation> animationCache;
 
     public AnimationManager(QuantumCrates plugin) {
         this.plugin = plugin;
+        this.animationCache = new EnumMap<>(Crate.GuiAnimationType.class);
+        animationCache.put(Crate.GuiAnimationType.ROULETTE,    new RouletteAnimation(plugin));
+        animationCache.put(Crate.GuiAnimationType.SHUFFLER,    new ShufflerAnimation(plugin));
+        animationCache.put(Crate.GuiAnimationType.BOUNDARY,    new BoundaryAnimation(plugin));
+        animationCache.put(Crate.GuiAnimationType.SINGLE_SPIN, new SingleSpinAnimation(plugin));
+        animationCache.put(Crate.GuiAnimationType.FLICKER,     new FlickerAnimation(plugin));
     }
 
     public boolean hasSession(UUID uuid) {
@@ -41,23 +49,24 @@ public class AnimationManager {
         resolveAnimation(crate).start(session);
     }
 
-    public void completeSession(CrateSession session) {
+    /**
+     * Completes the session atomically. Returns true if THIS caller was the one
+     * who completed it (i.e., won the CAS). The caller should only deliver the
+     * reward if this returns true, preventing double delivery.
+     */
+    public boolean completeSession(CrateSession session) {
         if (!session.tryComplete()) {
-            return;
+            return false;
         }
         sessions.remove(session.getPlayer().getUniqueId());
         session.setRunning(false);
         session.cancelAllTasks();
+        return true;
     }
 
     private CrateAnimation resolveAnimation(Crate crate) {
-        return switch (crate.getGuiAnimation()) {
-            case SHUFFLER    -> new ShufflerAnimation(plugin);
-            case BOUNDARY    -> new BoundaryAnimation(plugin);
-            case SINGLE_SPIN -> new SingleSpinAnimation(plugin);
-            case FLICKER     -> new FlickerAnimation(plugin);
-            default          -> new RouletteAnimation(plugin);
-        };
+        return animationCache.getOrDefault(crate.getGuiAnimation(),
+                animationCache.get(Crate.GuiAnimationType.ROULETTE));
     }
 
     public void shutdown() {
@@ -67,7 +76,8 @@ public class AnimationManager {
         for (CrateSession s : pending) {
             s.setRunning(false);
             s.cancelAllTasks();
-            if (!s.tryComplete()) continue;
+            if (!s.tryComplete())
+                continue;
 
             Player player = s.getPlayer();
             RewardResult result = s.getResult();

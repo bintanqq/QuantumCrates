@@ -43,12 +43,14 @@ public final class KnockbackUtil {
         playDeniedSound(world, playerLoc);
     }
 
+    private static final String[] DENIED_SOUND_NAMES = {
+            "ENTITY_WIND_CHARGE_WIND_BURST",  // 1.21.2+
+            "ENTITY_BREEZE_WIND_BURST",        // 1.21 snapshot names
+            "UI_BUTTON_CLICK",                 // safe universal fallback
+    };
+
     private static void playDeniedSound(World world, Location loc) {
-        for (String name : new String[]{
-                "ENTITY_WIND_CHARGE_WIND_BURST",  // 1.21.2+
-                "ENTITY_BREEZE_WIND_BURST",        // 1.21 snapshot names
-                "UI_BUTTON_CLICK",                 // safe universal fallback
-        }) {
+        for (String name : DENIED_SOUND_NAMES) {
             try {
                 Sound sound = Sound.valueOf(name);
                 world.playSound(loc, sound, 0.8f, 1.1f);

@@ -123,9 +123,9 @@ public class RouletteAnimation implements CrateAnimation {
         BukkitTask close = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (session.isForfeited()) return;
             session.getPlayer().closeInventory();
-            plugin.getAnimationManager().completeSession(session);
-            // Deliver reward ONLY here (onComplete equivalent)
-            plugin.getCrateManager().deliverRewardPublic(session.getPlayer(), session.getResult());
+            if (plugin.getAnimationManager().completeSession(session)) {
+                plugin.getCrateManager().deliverRewardPublic(session.getPlayer(), session.getResult());
+            }
         }, 40L);
 
         session.addTask(close);

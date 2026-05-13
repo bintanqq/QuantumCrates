@@ -51,14 +51,7 @@ public class QuantumPlaceholderExpansion extends PlaceholderExpansion {
         // %quantumcrates_keys_<keyId>%
         if (params.startsWith("keys_")) {
             String keyId = params.substring(5);
-            try {
-                int balance = plugin.getDatabaseManager()
-                        .getVirtualKeys(player.getUniqueId(), keyId)
-                        .get();
-                return String.valueOf(balance);
-            } catch (Exception e) {
-                return "0";
-            }
+            return String.valueOf(plugin.getKeyManager().getVirtualBalance(player, keyId));
         }
 
         // %quantumcrates_pity_max_<crateId>%

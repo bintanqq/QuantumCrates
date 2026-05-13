@@ -6,6 +6,7 @@ import me.bintanq.quantumcrates.util.Logger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class LogManager {
 
@@ -15,6 +16,7 @@ public class LogManager {
     private final DatabaseManager db;
     private final Executor asyncExecutor;
     private final ConcurrentLinkedQueue<CrateLog> logQueue = new ConcurrentLinkedQueue<>();
+    private final AtomicInteger queueSize = new AtomicInteger(0);
     private final ScheduledExecutorService scheduler =
             Executors.newSingleThreadScheduledExecutor(r -> {
                 Thread t = new Thread(r, "QuantumCrates-LogFlusher");
@@ -31,7 +33,7 @@ public class LogManager {
 
     public void log(CrateLog entry) {
         logQueue.add(entry);
-        if (logQueue.size() >= BATCH_SIZE * 5)
+        if (queueSize.incrementAndGet() >= BATCH_SIZE * 5)
             CompletableFuture.runAsync(this::flushQueue, asyncExecutor);
     }
 
@@ -42,6 +44,7 @@ public class LogManager {
             List<CrateLog> batch = new ArrayList<>();
             CrateLog entry;
             while ((entry = logQueue.poll()) != null) {
+                queueSize.decrementAndGet();
                 batch.add(entry);
                 if (batch.size() >= BATCH_SIZE) {
                     db.insertLogBatch(new ArrayList<>(batch));
