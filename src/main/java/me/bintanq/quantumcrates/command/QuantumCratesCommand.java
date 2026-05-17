@@ -57,7 +57,7 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
     }
 
     private void cmdGive(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("quantumcrates.key.give")) {
+        if (!sender.hasPermission("quantumcrates.key.give") && !sender.hasPermission("quantumcrates.admin")) {
             MessageManager.sendNoPermission(sender); return;
         }
         if (args.length < 4) { MessageManager.send(sender, "usage-give"); return; }
@@ -71,6 +71,11 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
             if (amount <= 0) throw new NumberFormatException();
         } catch (NumberFormatException e) {
             MessageManager.sendInvalidNumber(sender); return;
+        }
+
+        if (!plugin.getKeyManager().getKnownKeyIds().contains(keyId)) {
+            MessageManager.send(sender, "key-invalid", "{key}", keyId);
+            return;
         }
 
         Player online = Bukkit.getPlayer(targetInput);
@@ -360,31 +365,64 @@ public class QuantumCratesCommand implements CommandExecutor, TabCompleter {
 
     private void sendHelp(CommandSender sender) {
         MessageManager.send(sender, "help-header");
-        for (String key : List.of("reload","give","open","info","list",
-                "setloc","delloc","pity","resetpity","resetlifetime","keys-cmd","web",
-                "controls-header","ctrl-left","ctrl-right","ctrl-shift")) {
-            MessageManager.send(sender, "help-" + key);
+
+        boolean admin = sender.hasPermission("quantumcrates.admin");
+        boolean give = sender.hasPermission("quantumcrates.key.give");
+        boolean web = sender.hasPermission("quantumcrates.web");
+
+        if (admin) MessageManager.send(sender, "help-reload");
+        if (admin || give) MessageManager.send(sender, "help-give");
+        if (admin) MessageManager.send(sender, "help-open");
+        MessageManager.send(sender, "help-info");
+        MessageManager.send(sender, "help-list");
+        if (admin) MessageManager.send(sender, "help-setloc");
+        if (admin) MessageManager.send(sender, "help-delloc");
+        if (admin) MessageManager.send(sender, "help-pity");
+        if (admin) MessageManager.send(sender, "help-resetpity");
+        if (admin) MessageManager.send(sender, "help-resetlifetime");
+        if (admin) MessageManager.send(sender, "help-keys-cmd");
+        if (admin || web) MessageManager.send(sender, "help-web");
+
+        if (admin) {
+            for (String key : List.of("controls-header","ctrl-left","ctrl-right","ctrl-shift")) {
+                MessageManager.send(sender, "help-" + key);
+            }
         }
     }
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd,
                                       @NotNull String label, @NotNull String[] args) {
-        if (args.length == 1)
-            return filter(List.of("reload","give","open","info","list",
-                    "setloc","delloc","pity","resetpity","resetlifetime","keys","web"), args[0]);
+        boolean admin = sender.hasPermission("quantumcrates.admin");
+        boolean give = sender.hasPermission("quantumcrates.key.give");
+        boolean web = sender.hasPermission("quantumcrates.web");
+
+        if (args.length == 1) {
+            List<String> options = new ArrayList<>(List.of("info", "list"));
+            if (admin) options.addAll(List.of("reload", "open", "setloc", "delloc", "pity", "resetpity", "resetlifetime", "keys"));
+            if (admin || give) options.add("give");
+            if (admin || web) options.add("web");
+            return filter(options, args[0]);
+        }
 
         return switch (args[0].toLowerCase()) {
-            case "open","info","setloc","delloc" ->
+            case "open","setloc","delloc" ->
+                    admin && args.length == 2 ? filter(crateIds(), args[1]) : List.of();
+            case "info" ->
                     args.length == 2 ? filter(crateIds(), args[1]) : List.of();
-            case "give","pity","resetpity","resetlifetime","keys" ->
-                    args.length == 2 ? filter(onlinePlayers(), args[1])
-                            : args.length == 3 ? filter(
-                            args[0].equalsIgnoreCase("give") ? knownKeyIds() : crateIds(),
-                            args[2])
-                            : args.length == 4 && args[0].equalsIgnoreCase("give")
-                            ? filter(List.of("1","5","10","32","64"), args[3])
-                            : List.of();
+            case "give" ->
+                    (admin || give) ? (args.length == 2 ? filter(onlinePlayers(), args[1])
+                            : args.length == 3 ? filter(knownKeyIds(), args[2])
+                            : args.length == 4 ? filter(List.of("1","5","10","32","64"), args[3])
+                            : List.of()) : List.of();
+            case "pity","resetpity","resetlifetime" ->
+                    admin ? (args.length == 2 ? filter(onlinePlayers(), args[1])
+                            : args.length == 3 ? filter(crateIds(), args[2])
+                            : List.of()) : List.of();
+            case "keys" ->
+                    admin ? (args.length == 2 ? filter(onlinePlayers(), args[1])
+                            : args.length == 3 ? filter(knownKeyIds(), args[2])
+                            : List.of()) : List.of();
             default -> List.of();
         };
     }

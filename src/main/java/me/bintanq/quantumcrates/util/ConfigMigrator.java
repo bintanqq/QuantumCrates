@@ -12,19 +12,23 @@ import java.nio.file.Files;
 import java.util.List;
 
 /**
- * ConfigMigrator — automatic forward migration for config.yml, rarities.yml, and crate JSON files.
+ * ConfigMigrator — automatic forward migration for config.yml, rarities.yml,
+ * and crate JSON files.
  *
- * <p>Each config file has an internal {@code config-version} key. When the plugin
+ * <p>
+ * Each config file has an internal {@code config-version} key. When the plugin
  * detects an older version, it applies incremental migrations to add new keys
- * with sensible defaults. Old or incomplete configs never crash the plugin.</p>
+ * with sensible defaults. Old or incomplete configs never crash the plugin.
+ * </p>
  */
 public final class ConfigMigrator {
 
     // Current schema versions
-    private static final int CONFIG_VERSION    = 2;
-    private static final int RARITIES_VERSION  = 1;
+    private static final int CONFIG_VERSION = 3;
+    private static final int RARITIES_VERSION = 1;
 
-    private ConfigMigrator() {}
+    private ConfigMigrator() {
+    }
 
     /**
      * Migrates config.yml if needed. Adds new keys with defaults silently.
@@ -36,7 +40,8 @@ public final class ConfigMigrator {
             FileConfiguration config = plugin.getConfig();
             int currentVersion = config.getInt("config-version", 1);
 
-            if (currentVersion >= CONFIG_VERSION) return;
+            if (currentVersion >= CONFIG_VERSION)
+                return;
 
             Logger.info("Migrating config.yml from v" + currentVersion + " → v" + CONFIG_VERSION + "...");
 
@@ -52,6 +57,11 @@ public final class ConfigMigrator {
                         "# Enable Vault economy integration for money rewards.");
                 setIfAbsent(config, "vault.currency-format", "${amount}",
                         "# Format string for economy amounts. {amount} is replaced with the value.");
+            }
+
+            // v2 → v3: add missing message keys
+            if (currentVersion < 3) {
+                setIfAbsent(config, "messages.key-invalid", "&cInvalid key name: &e{key}", null);
             }
 
             config.set("config-version", CONFIG_VERSION);
@@ -70,12 +80,14 @@ public final class ConfigMigrator {
     public static void migrateRarities(QuantumCrates plugin) {
         try {
             File raritiesFile = new File(plugin.getDataFolder(), "rarities.yml");
-            if (!raritiesFile.exists()) return;
+            if (!raritiesFile.exists())
+                return;
 
             YamlConfiguration config = YamlConfiguration.loadConfiguration(raritiesFile);
             int currentVersion = config.getInt("config-version", 0);
 
-            if (currentVersion >= RARITIES_VERSION) return;
+            if (currentVersion >= RARITIES_VERSION)
+                return;
 
             Logger.info("Migrating rarities.yml from v" + currentVersion + " → v" + RARITIES_VERSION + "...");
 
@@ -96,14 +108,17 @@ public final class ConfigMigrator {
     public static void migrateCrateFiles(QuantumCrates plugin) {
         try {
             File cratesDir = new File(plugin.getDataFolder(), "crates");
-            if (!cratesDir.exists() || !cratesDir.isDirectory()) return;
+            if (!cratesDir.exists() || !cratesDir.isDirectory())
+                return;
 
             File[] files = cratesDir.listFiles((dir, name) -> name.endsWith(".json"));
-            if (files == null) return;
+            if (files == null)
+                return;
 
             int migrated = 0;
             for (File file : files) {
-                if (migrateSingleCrateFile(file)) migrated++;
+                if (migrateSingleCrateFile(file))
+                    migrated++;
             }
             if (migrated > 0) {
                 Logger.info("&aMigrated " + migrated + " crate file(s) with missing fields.");
@@ -162,7 +177,8 @@ public final class ConfigMigrator {
      */
     private static String insertJsonField(String json, String key, String value) {
         int lastBrace = json.lastIndexOf('}');
-        if (lastBrace < 0) return json;
+        if (lastBrace < 0)
+            return json;
 
         // Check if we need a comma
         String before = json.substring(0, lastBrace).stripTrailing();

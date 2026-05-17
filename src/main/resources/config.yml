@@ -37,7 +37,7 @@ database:
 # ─────────────────────────────────────────────────────────────────────────────
 # CONFIG VERSIONING — do NOT modify this manually
 # ─────────────────────────────────────────────────────────────────────────────
-config-version: 2
+config-version: 3
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GENERAL SETTINGS
@@ -181,6 +181,7 @@ messages:
 
   # ── Keys ─────────────────────────────────────────────────────────────────
   key-not-found:      "&cYou do not have the required key: &e{key}"
+  key-invalid:        "&cInvalid key name: &e{key}"
   key-given-sender:   "&aYou gave &e{amount}x &a{key} &ato &e{player}&a."
   key-given-receiver: "&aYou received &e{amount}x &a{key}&a!"
   key-insufficient:   "&cInsufficient balance to remove key &e{key}&c."

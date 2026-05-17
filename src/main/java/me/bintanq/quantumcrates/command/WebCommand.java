@@ -28,7 +28,7 @@ public class WebCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd,
                              @NotNull String label, @NotNull String[] args) {
 
-        if (!sender.hasPermission("quantumcrates.admin")) {
+        if (!sender.hasPermission("quantumcrates.admin") && !sender.hasPermission("quantumcrates.web")) {
             MessageManager.sendNoPermission(sender);
             return true;
         }
